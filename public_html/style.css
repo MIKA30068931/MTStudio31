@@ -36,6 +36,13 @@ nav a:hover{color:var(--rose-d)}
 .cta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
 .btn{display:inline-block;background:var(--ink);color:var(--bg);border:1px solid var(--ink);padding:.85rem 2rem;border-radius:99px;font:400 .8rem var(--sans);letter-spacing:.15em;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:.25s}
 .btn:hover{background:var(--rose-d);border-color:var(--rose-d)}
+.btn.wa{background:#25a35a;border-color:#25a35a}
+.btn.wa:hover{background:#1d8a4a;border-color:#1d8a4a}
+.or{color:var(--muted);margin:1.6rem 0 .8rem;font-size:.9rem}
+.nav-wa{color:#1d8a4a}
+.wa-float{position:fixed;right:1.2rem;bottom:1.2rem;z-index:20;display:flex;align-items:center;gap:.5rem;background:#25a35a;color:#fff;text-decoration:none;padding:.75rem 1.1rem;border-radius:99px;font-size:.85rem;letter-spacing:.08em;box-shadow:0 10px 24px -10px rgba(0,0,0,.45);transition:transform .2s,background .2s}
+.wa-float:hover{background:#1d8a4a;transform:translateY(-2px)}
+.wa-float svg{width:24px;height:24px}
 .btn.ghost{background:transparent;color:var(--ink)}
 .btn.ghost:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 
@@ -96,4 +103,6 @@ footer small{color:#9b9288}footer a{color:inherit}
   .section{padding:5rem 6vw}
   .gallery{grid-template-columns:repeat(2,1fr)}
   .row{grid-template-columns:1fr}
+  .wa-float span{display:none}
+  .wa-float{padding:.8rem}
 }
