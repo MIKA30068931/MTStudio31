@@ -155,3 +155,7 @@ footer small{color:#9b9288}footer a{color:inherit}
 .cart .btn:hover{background:#fff;border-color:#fff}
 .cart .btn.ghost{background:transparent;color:var(--bg);border-color:#8a8279}
 .cart .btn.ghost:hover{background:var(--bg);color:var(--ink)}
+
+.flow{list-style:none;padding:0;margin:1.8rem auto 0;display:flex;justify-content:center;gap:1.2rem 2rem;flex-wrap:wrap;max-width:860px}
+.flow li{display:flex;align-items:center;gap:.7rem;font-size:.9rem;color:var(--muted)}
+.flow b{width:30px;height:30px;border-radius:50%;background:var(--rose);color:#fff;display:grid;place-items:center;font:500 .85rem var(--sans);flex:none}
