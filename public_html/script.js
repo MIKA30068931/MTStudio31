@@ -20,6 +20,7 @@ panel.className='chat';panel.setAttribute('role','dialog');panel.setAttribute('a
 panel.innerHTML='<div class="chat-head"><div><b>Au gré des envies</b><small>Parlons de votre projet</small></div><button class="chat-x" type="button" aria-label="Fermer">&times;</button></div>'+
 '<div class="chat-log" aria-live="polite"></div>'+
 '<form class="chat-form"><input name="m" placeholder="Votre message…" autocomplete="off" maxlength="600" required><button type="submit">Envoyer</button></form>'+
+'<div class="chat-note">Assistant automatisé (IA) : vos messages sont traités pour répondre à votre demande. <a href="confidentialite.html" target="_blank">Confidentialité</a></div>'+
 '<div class="chat-foot">Ou écrivez directement sur <a href="'+WHATSAPP_URL+'" target="_blank" rel="noopener">WhatsApp</a></div>';
 document.body.appendChild(panel);
 const log=panel.querySelector('.chat-log'),form=panel.querySelector('form'),input=form.m,sendBtn=form.querySelector('button');
