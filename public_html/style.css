@@ -1,3 +1,9 @@
+@font-face{font-family:'Jost';font-style:normal;font-weight:300;font-display:swap;src:url(fonts/jost-latin-300-normal.woff2) format('woff2')}
+@font-face{font-family:'Jost';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/jost-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Jost';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/jost-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/cormorant-garamond-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/cormorant-garamond-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:400;font-display:swap;src:url(fonts/cormorant-garamond-latin-400-italic.woff2) format('woff2')}
 :root{--bg:#faf6f1;--tint:#f3ece4;--ink:#2f2c29;--muted:#7a736c;--rose:#c9a29a;--rose-d:#a97f77;--sage:#7d8f78;--line:#e6dccf;
 --serif:'Cormorant Garamond',Georgia,serif;--sans:'Jost',system-ui,sans-serif}
 *{box-sizing:border-box;margin:0}
