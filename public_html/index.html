@@ -51,7 +51,7 @@
     <a href="#univers">L'univers</a>
     <a href="#creations">Créations</a>
     <a href="#surmesure">Sur mesure</a>
-    <a href="#galerie">Galerie</a>
+    <a href="#boutique">Boutique</a>
     <a href="#" data-chat class="nav-wa">Discuter</a>
     <a href="#contact" class="btn-sm">Contact</a>
   </nav>
@@ -127,18 +127,19 @@
   </div>
 </section>
 
-<section id="galerie" class="section tinted">
+<section id="boutique" class="section tinted">
   <div class="wrap reveal">
-    <p class="eyebrow center">Galerie</p>
-    <h2 class="center">Quelques <em>inspirations</em></h2>
-    <div class="gallery">
-      <!-- Remplacez chaque <div class="ph"> par : <img src="images/votre-photo.jpg" alt="Description"> -->
-      <div class="ph t1"><svg><use href="#flower"/></svg></div>
-      <div class="ph t2"><svg><use href="#branch"/></svg></div>
-      <div class="ph t3"><svg><use href="#flower"/></svg></div>
-      <div class="ph t4"><svg><use href="#branch"/></svg></div>
-      <div class="ph t5"><svg><use href="#flower"/></svg></div>
-      <div class="ph t6"><svg><use href="#branch"/></svg></div>
+    <p class="eyebrow center">Boutique</p>
+    <h2 class="center">Mes créations <em>à commander</em></h2>
+    <p class="center sub">Choisissez vos pièces et les quantités, puis envoyez votre demande : je reviens vers vous avec un devis.</p>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="shop" id="shop"></div>
+    <div class="cart" id="cart" hidden>
+      <div class="cart-info"><b id="cart-count"></b><span id="cart-list"></span></div>
+      <div class="cart-actions">
+        <button class="btn" type="button" id="cart-quote">Demander un devis</button>
+        <a class="btn ghost" id="cart-wa" href="#" target="_blank" rel="noopener">Par WhatsApp</a>
+      </div>
     </div>
   </div>
 </section>
