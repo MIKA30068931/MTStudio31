@@ -33,5 +33,17 @@
   "illustration_duree_max_s": 9,
   "dossier_illustrations": "Illustrations",
   "marqueurs": true,
-  "marqueur_coupe_longue_s": 3
+  "marqueur_coupe_longue_s": 3,
+  "musique": null,
+  "musique_dossier": "Musique",
+  "musique_sources": [
+    "local",
+    "jamendo",
+    "openverse"
+  ],
+  "musique_lufs": -26,
+  "musique_ducking": true,
+  "musique_ducking_ratio": 10,
+  "musique_fade_in_s": 1.5,
+  "musique_fade_out_s": 3
 }

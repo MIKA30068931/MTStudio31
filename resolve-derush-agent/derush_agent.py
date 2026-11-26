@@ -56,6 +56,14 @@ DEFAUTS = {
     "dossier_illustrations": "Illustrations",
     "marqueurs": True,
     "marqueur_coupe_longue_s": 3,
+    "musique": None,
+    "musique_dossier": "Musique",
+    "musique_sources": ["local", "jamendo", "openverse"],
+    "musique_lufs": -26,
+    "musique_ducking": True,
+    "musique_ducking_ratio": 10,
+    "musique_fade_in_s": 1.5,
+    "musique_fade_out_s": 3,
 }
 
 
@@ -218,7 +226,7 @@ def vers_images(secondes, fps):
     return int(round(secondes * fps))
 
 
-def construire_dans_resolve(racine, cats, analyses, cfg):
+def construire_dans_resolve(racine, cats, analyses, cfg, musique=None):
     resolve = obtenir_resolve()
     nom_projet = f"{racine.name} - {datetime.now():%Y-%m-%d %H%M}"
     projet = creer_projet(resolve, nom_projet)
@@ -330,6 +338,25 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
         if cfg["marqueurs"]:
             n = marquer(tl, clips, overlays, debut)
             print(f"    + {n} marqueurs de couleur")
+        return tl
+
+    def poser_musique(tl, musique, frames_tl):
+        b = mp.AddSubFolder(dossier_racine, "Musique")
+        mp.SetCurrentFolder(b)
+        imp = mp.ImportMedia([musique["fichier"]]) or []
+        mp.SetCurrentFolder(dossier_racine)
+        if not imp:
+            print("  ! musique non importée")
+            return
+        n = min(frames_tl, int(float(imp[0].GetClipProperty("Frames") or frames_tl)))
+        while tl.GetTrackCount("audio") < 2:
+            tl.AddTrack("audio", "stereo")
+        debut = tl.GetStartFrame()
+        ok = mp.AppendToTimeline([{"mediaPoolItem": imp[0], "startFrame": 0, "endFrame": n - 1,
+                                   "mediaType": 2, "trackIndex": 2, "recordFrame": debut}])
+        print(f"    + musique « {musique['titre']} » sur A2 ({'ok' if ok else 'ÉCHEC'})")
+        tl.AddMarker(debut, "Pink", f"Musique : {musique['titre']}",
+                     f"Ambiance : {', '.join(musique['tags'])}\nCrédit : {musique['credit']}", 1, "derush")
 
     def marquer(tl, clips, overlays, debut):
         """Bleu=dérushé, Jaune=grosse coupe, Violet=gardé entier, Vert=illustration."""
@@ -360,7 +387,11 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
         if cfg["creer_timeline_par_categorie"]:
             timeline(f"{cat} - Dérushé", clips, ov)
     if cfg["creer_timeline_globale"]:
-        timeline(f"{racine.name} - Dérushage global", tout, tout_ov)
+        tl = timeline(f"{racine.name} - Dérushage global", tout, tout_ov)
+        if musique and tl:
+            poser_musique(tl, musique, sum(x["endFrame"] - x["startFrame"] + 1 for x in tout))
+    elif musique:
+        print("  ! musique ignorée : active creer_timeline_globale")
 
     resolve.OpenPage("edit")
     pm = resolve.GetProjectManager()
@@ -405,11 +436,19 @@ def main():
                     help="N'ouvre pas Resolve : écrit seulement le rapport des coupes")
     ap.add_argument("--illustrations", action="store_true",
                     help="Transcrit le dialogue, cherche des illustrations sur internet et les pose sur V2")
+    ap.add_argument("--musique", metavar="AMBIANCE",
+                    help='Ajoute une musique de fond : "calme, inspirant" ou "auto" (déduit du dialogue)')
+    ap.add_argument("--musique-choisir", action="store_true", help="Propose la liste de pistes à choisir")
+    ap.add_argument("--musique-dossier", help="Dossier de tes pistes (ex. téléchargées sur Epidemic Sound)")
     ap.add_argument("--seuil", type=float, help="Seuil de silence en dB (ex: -35)")
     ap.add_argument("--silence-min", type=float, help="Durée mini d'un silence supprimé (s)")
     args = ap.parse_args(sys.argv[1:] if "resolve" not in globals() else [])
 
     cfg = charger_config(args.config)
+    if args.musique:
+        cfg["musique"] = args.musique
+    if args.musique_dossier:
+        cfg["musique_dossier"] = args.musique_dossier
     if args.illustrations:
         cfg["illustrations"] = True
     if args.seuil is not None:
@@ -456,12 +495,17 @@ def main():
                 print(f"  [{cat}] {Path(a['fichier']).name}")
                 a["illustrations"] = illustrations.planifier_illustrations(a, cfg, dossier_ill)
 
+    musique = None
+    if cfg["musique"]:
+        import music
+        musique = music.preparer_musique(cfg["musique"], analyses, racine, cfg, args.musique_choisir)
+
     rapport = racine / "rapport_derush.json"
     rapport.write_text(json.dumps(analyses, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Rapport : {rapport}")
 
     if not args.analyse_seule:
-        construire_dans_resolve(racine, cats, analyses, cfg)
+        construire_dans_resolve(racine, cats, analyses, cfg, musique)
 
 
 if __name__ == "__main__" or "resolve" in globals():  # 2e cas : lancé depuis Resolve

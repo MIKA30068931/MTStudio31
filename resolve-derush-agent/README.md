@@ -51,6 +51,35 @@ Chaque clip de la timeline reçoit un marqueur (nom + note visibles en double-cl
 Réglages dans `config.json` : `"marqueurs": false` pour désactiver, `marqueur_coupe_longue_s` pour le seuil du jaune.
 Astuce : Timeline > Marqueurs permet de filtrer par couleur et de sauter d'un jaune à l'autre.
 
+## Musique de fond à la demande (`--musique`)
+```
+python derush_agent.py "D:/Montage vidéo" --musique "calme, inspirant"
+python derush_agent.py "D:/Montage vidéo" --musique auto          # ambiance déduite du dialogue
+python derush_agent.py "D:/Montage vidéo" --musique "énergique" --musique-choisir   # tu choisis la piste
+```
+La musique est posée sur la piste **A2** de la timeline globale (marqueur 🌸 rose avec titre et crédit).
+
+**Sources, dans l'ordre :**
+1. **Tes pistes** dans `Montage vidéo/Musique/` : c'est ici que tu mets les morceaux **téléchargés avec ton
+   abonnement Epidemic Sound**. Range-les par ambiance (`Musique/calme/`, `Musique/dynamique/`) : les noms de
+   dossiers et de fichiers servent à choisir.
+2. **Jamendo** (musique Creative Commons, clé gratuite `JAMENDO_CLIENT_ID`) : les licences non commerciales sont écartées.
+3. **Openverse** (sans clé) : licences libres autorisant l'usage commercial.
+
+> **Epidemic Sound** n'offre pas d'API publique de téléchargement : l'agent ne peut donc pas parcourir ni
+> télécharger leur bibliothèque. L'offre gratuite et l'affiliation ne donnent pas de musique libre (l'affiliation
+> sert à toucher une commission) et la licence est liée à ton abonnement et à tes chaînes. D'où le dossier `Musique/`.
+
+**Rendu automatique (pratiques de post-production) :**
+- niveau normalisé (-26 LUFS) pour rester sous la voix ;
+- **ducking** : la musique baisse automatiquement quand quelqu'un parle et remonte sur les plans muets (B-roll) ;
+- fondu d'entrée (1,5 s) et de sortie (3 s) ; piste bouclée ou coupée à la durée exacte du montage.
+Réglages : `musique_lufs`, `musique_ducking`, `musique_ducking_ratio`, `musique_fade_in_s`, `musique_fade_out_s`.
+
+Le mixage est un fichier `Musique/_rendus/musique_mixee.wav` ; les crédits sont dans `CREDITS_MUSIQUE.json`.
+Limites : la boucle d'une piste courte n'a pas de fondu enchaîné au raccord ; le mix est calé sur le montage
+au moment de l'exécution (si tu retouches la timeline, relance ou ajuste la A2 à la main).
+
 ## Illustrations automatiques (`--illustrations`)
 L'agent écoute le dialogue, cherche sur internet des images/vidéos qui illustrent le propos et les pose
 sur la **piste V2**, calées sur le moment où la phrase est dite (même après suppression des silences).
