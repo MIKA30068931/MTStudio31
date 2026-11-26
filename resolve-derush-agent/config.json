@@ -4,10 +4,32 @@
   "marge_avant_s": 0.15,
   "marge_apres_s": 0.25,
   "segment_min_s": 0.4,
-  "extensions": [".mp4", ".mov", ".mxf", ".mkv", ".avi", ".m4v", ".mts", ".mpg"],
-  "sous_dossiers_sans_derush": ["B-roll", "BRoll", "Plans de coupe", "Ambiance", "Drone"],
+  "extensions": [
+    ".mp4",
+    ".mov",
+    ".mxf",
+    ".mkv",
+    ".avi",
+    ".m4v",
+    ".mts",
+    ".mpg"
+  ],
+  "sous_dossiers_sans_derush": [
+    "B-roll",
+    "BRoll",
+    "Plans de coupe",
+    "Ambiance",
+    "Drone"
+  ],
   "nom_dossier_rushs_resolve": "Rushs",
   "fps_timeline": null,
   "creer_timeline_par_categorie": true,
-  "creer_timeline_globale": true
+  "creer_timeline_globale": true,
+  "illustrations": false,
+  "langue": "fr",
+  "whisper_modele": "small",
+  "modele_claude": "claude-haiku-5-5",
+  "illustration_duree_min_s": 4,
+  "illustration_duree_max_s": 9,
+  "dossier_illustrations": "Illustrations"
 }

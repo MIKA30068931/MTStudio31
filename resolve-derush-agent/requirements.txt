@@ -1,0 +1,2 @@
+faster-whisper   # transcription locale du dialogue (--illustrations)
+anthropic        # optionnel : requêtes d'images pertinentes via Claude

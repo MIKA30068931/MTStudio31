@@ -38,6 +38,33 @@ Réglages en ligne de commande : `--seuil -35` (plus bas = plus sensible), `--si
 | `segment_min_s` | Ignore les bruits très brefs (0,4 s). |
 | `sous_dossiers_sans_derush` | Catégories gardées entières (B-roll, ambiance...). |
 
+## Illustrations automatiques (`--illustrations`)
+L'agent écoute le dialogue, cherche sur internet des images/vidéos qui illustrent le propos et les pose
+sur la **piste V2**, calées sur le moment où la phrase est dite (même après suppression des silences).
+
+```
+python derush_agent.py "D:/Montage vidéo" --illustrations
+```
+1. **Transcription locale** (Whisper) : `pip install faster-whisper` - l'audio ne quitte pas ton PC.
+2. **Requêtes visuelles** : avec `ANTHROPIC_API_KEY`, Claude écrit une requête concrète en anglais par
+   passage (ex. « construite en 1889 à Paris » -> `eiffel tower construction`). Sans clé : mots-clés
+   simples, nettement moins pertinents.
+3. **Recherche** (dans l'ordre) : Pexels et Pixabay (vidéos puis photos, clés gratuites
+   `PEXELS_API_KEY` / `PIXABAY_API_KEY`), puis Wikimedia Commons (sans clé, photos).
+4. Les photos deviennent des clips avec léger zoom ; tout est rangé dans `Montage vidéo/Illustrations/`
+   (bin « Illustrations » dans Resolve) avec les crédits dans `CREDITS.json`.
+5. Seules les catégories dérushées sont illustrées (pas B-roll/Ambiance).
+
+**À savoir**
+- **Confidentialité** : le texte du dialogue est envoyé aux sites de recherche (et à Claude si la clé est
+  définie). Ne l'active pas sur du contenu confidentiel.
+- **Droits** : Pexels/Pixabay sont libres d'usage ; Wikimedia exige souvent une **attribution** (voir
+  `CREDITS.json`). Vérifie toujours la licence avant publication.
+- Les illustrations sont des **propositions** : relis la V2 et supprime celles qui ne collent pas.
+- Un bloc qui chevauche une coupe est raccourci au passage conservé.
+- Cette partie est testée avec une transcription et une recherche simulées (pas d'accès internet ici) :
+  la recherche réelle et Whisper restent à valider sur ta machine.
+
 ## Limites
 - La détection se base sur le **volume** (pas sur le sens) : un bruit fort sera gardé comme de la parole.
 - Le script n'a pas pu être testé dans Resolve 21 lui-même ici ; l'analyse des silences, elle, est testée.

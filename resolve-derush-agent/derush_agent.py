@@ -27,6 +27,14 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+try:  # module voisin (dans Resolve, __file__ peut être absent)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+except NameError:
+    for _p in (os.path.expandvars(r"%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility"),
+               os.path.expanduser("~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility"),
+               os.path.expanduser("~/.local/share/DaVinciResolve/Fusion/Scripts/Utility")):
+        sys.path.insert(0, _p)
+
 DEFAUTS = {
     "seuil_silence_db": -32,
     "duree_silence_min_s": 0.6,
@@ -39,6 +47,13 @@ DEFAUTS = {
     "fps_timeline": None,
     "creer_timeline_par_categorie": True,
     "creer_timeline_globale": True,
+    "illustrations": False,
+    "langue": "fr",
+    "whisper_modele": "small",
+    "modele_claude": "claude-haiku-5-5",
+    "illustration_duree_min_s": 4,
+    "illustration_duree_max_s": 9,
+    "dossier_illustrations": "Illustrations",
 }
 
 
@@ -237,8 +252,20 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
         except Exception:
             pass
 
+    # bin des illustrations
+    ills = {}
+    chemins_ill = sorted({i["fichier"] for l in analyses.values() for a in l
+                          for i in a.get("illustrations", [])})
+    if chemins_ill:
+        b = mp.AddSubFolder(dossier_racine, "Illustrations")
+        mp.SetCurrentFolder(b)
+        for it in mp.ImportMedia(chemins_ill) or []:
+            ills[os.path.normcase(it.GetClipProperty("File Path"))] = it
+        mp.SetCurrentFolder(dossier_racine)
+        print(f"  Bin Illustrations : {len(ills)}/{len(chemins_ill)} clips importés")
+
     def infos_timeline(cat_liste):
-        out = []
+        out, overlays, pos = [], [], 0  # pos = images déjà posées sur V1
         for a in cat_liste:
             it = items.get(os.path.normcase(a["fichier"]))
             if it is None:
@@ -246,14 +273,28 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
                 continue
             fps = float(it.GetClipProperty("FPS") or a["fps"] or fps_tl)
             total = int(float(it.GetClipProperty("Frames") or 0)) or vers_images(a["duree_s"], fps)
+            coupes = []  # (début_s, fin_s, position V1 en images)
             for s, e in a["segments"]:
                 d = min(vers_images(s, fps), total - 1)
                 f = min(vers_images(e, fps), total) - 1  # endFrame inclusif
                 if f > d:
                     out.append({"mediaPoolItem": it, "startFrame": d, "endFrame": f})
-        return out
+                    coupes.append((s, e, pos))
+                    pos += f - d + 1
+            for ill in a.get("illustrations", []):  # même propos = même instant, silences retirés
+                mi = ills.get(os.path.normcase(ill["fichier"]))
+                c = next((c for c in coupes if c[0] <= ill["src_start"] + 0.01 < c[1]), None)
+                if mi is None or c is None:
+                    continue
+                n = vers_images(min(ill["src_end"], c[1]) - ill["src_start"], fps)
+                n = min(n, int(float(mi.GetClipProperty("Frames") or n)))
+                if n > 1:
+                    overlays.append(({"mediaPoolItem": mi, "startFrame": 0, "endFrame": n - 1,
+                                      "mediaType": 1, "trackIndex": 2},
+                                     c[2] + vers_images(ill["src_start"] - c[0], fps)))
+        return out, overlays
 
-    def timeline(nom, clips):
+    def timeline(nom, clips, overlays=()):
         if not clips:
             return
         tl = mp.CreateEmptyTimeline(nom)
@@ -262,15 +303,21 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
         projet.SetCurrentTimeline(tl)
         ok = mp.AppendToTimeline(clips)
         print(f"  Timeline « {nom} » : {len(clips)} coupes ({'ok' if ok else 'ÉCHEC'})")
+        if overlays:
+            debut = tl.GetStartFrame()
+            pose = [dict(c, recordFrame=debut + off) for c, off in overlays]
+            ok = mp.AppendToTimeline(pose)
+            print(f"    + {len(pose)} illustrations sur V2 ({'ok' if ok else 'ÉCHEC'})")
 
-    tout = []
+    tout, tout_ov = [], []
     for cat, liste in analyses.items():
-        clips = infos_timeline(liste)
+        clips, ov = infos_timeline(liste)
+        tout_ov += [(c, off + sum(x["endFrame"] - x["startFrame"] + 1 for x in tout)) for c, off in ov]
         tout += clips
         if cfg["creer_timeline_par_categorie"]:
-            timeline(f"{cat} - Dérushé", clips)
+            timeline(f"{cat} - Dérushé", clips, ov)
     if cfg["creer_timeline_globale"]:
-        timeline(f"{racine.name} - Dérushage global", tout)
+        timeline(f"{racine.name} - Dérushage global", tout, tout_ov)
 
     resolve.OpenPage("edit")
     pm = resolve.GetProjectManager()
@@ -313,11 +360,15 @@ def main():
     ap.add_argument("--config", help="Fichier config.json personnalisé")
     ap.add_argument("--analyse-seule", action="store_true",
                     help="N'ouvre pas Resolve : écrit seulement le rapport des coupes")
+    ap.add_argument("--illustrations", action="store_true",
+                    help="Transcrit le dialogue, cherche des illustrations sur internet et les pose sur V2")
     ap.add_argument("--seuil", type=float, help="Seuil de silence en dB (ex: -35)")
     ap.add_argument("--silence-min", type=float, help="Durée mini d'un silence supprimé (s)")
     args = ap.parse_args(sys.argv[1:] if "resolve" not in globals() else [])
 
     cfg = charger_config(args.config)
+    if args.illustrations:
+        cfg["illustrations"] = True
     if args.seuil is not None:
         cfg["seuil_silence_db"] = args.seuil
     if args.silence_min is not None:
@@ -350,6 +401,17 @@ def main():
     tot_out = sum(a["gardé_s"] for l in analyses.values() for a in l)
     print(f"Analyse en {time.time() - t0:.0f}s : {tot_in / 60:.1f} min -> {tot_out / 60:.1f} min "
           f"({(1 - tot_out / tot_in) * 100 if tot_in else 0:.0f}% supprimé)")
+
+    if cfg["illustrations"]:
+        import illustrations
+        dossier_ill = racine / cfg["dossier_illustrations"]
+        print("Illustrations : transcription locale puis recherche internet...")
+        for cat, liste in analyses.items():
+            if not doit_derusher(cat, cfg):
+                continue  # B-roll/ambiance : pas de dialogue à illustrer
+            for a in liste:
+                print(f"  [{cat}] {Path(a['fichier']).name}")
+                a["illustrations"] = illustrations.planifier_illustrations(a, cfg, dossier_ill)
 
     rapport = racine / "rapport_derush.json"
     rapport.write_text(json.dumps(analyses, ensure_ascii=False, indent=2), encoding="utf-8")
