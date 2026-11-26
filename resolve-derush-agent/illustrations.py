@@ -244,6 +244,8 @@ def planifier_illustrations(analyse, cfg, dossier_out):
         print(f"    [{deb:6.1f}s] « {b['text'][:50]} » -> {q}")
         f = preparer_illustration(i, q, fin - deb, dossier_out, analyse["fps"], cfg, credits)
         if f:
-            plan.append({"src_start": deb, "src_end": fin, "fichier": str(f), "requete": q})
+            info = next((c for c in reversed(credits) if c["fichier"] == f.name), {})
+            plan.append({"src_start": deb, "src_end": fin, "fichier": str(f), "requete": q,
+                         "texte": b["text"], "credit": info.get("credit", "")})
     credits_path.write_text(json.dumps(credits, ensure_ascii=False, indent=2), "utf-8")
     return plan

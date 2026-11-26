@@ -54,6 +54,8 @@ DEFAUTS = {
     "illustration_duree_min_s": 4,
     "illustration_duree_max_s": 9,
     "dossier_illustrations": "Illustrations",
+    "marqueurs": True,
+    "marqueur_coupe_longue_s": 3,
 }
 
 
@@ -274,11 +276,24 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
             fps = float(it.GetClipProperty("FPS") or a["fps"] or fps_tl)
             total = int(float(it.GetClipProperty("Frames") or 0)) or vers_images(a["duree_s"], fps)
             coupes = []  # (début_s, fin_s, position V1 en images)
+            precedent = 0.0
+            entier = a["mode"].startswith("gardé")
+            nom_f = Path(a["fichier"]).name
             for s, e in a["segments"]:
                 d = min(vers_images(s, fps), total - 1)
                 f = min(vers_images(e, fps), total) - 1  # endFrame inclusif
                 if f > d:
-                    out.append({"mediaPoolItem": it, "startFrame": d, "endFrame": f})
+                    gap = s - precedent  # silence retiré juste avant ce passage
+                    if entier:
+                        meta = ("Purple", f"Gardé entier - {nom_f}", a["mode"])
+                    elif gap >= cfg["marqueur_coupe_longue_s"]:
+                        meta = ("Yellow", f"Grosse coupe : -{gap:.1f}s - {nom_f}",
+                                "Silence long supprimé juste avant : vérifier que rien d'utile n'a sauté.")
+                    else:
+                        meta = ("Blue", f"Dérushé - {nom_f}",
+                                f"Silence supprimé avant : {max(gap, 0):.1f}s. Source {s:.1f}s -> {e:.1f}s")
+                    out.append({"mediaPoolItem": it, "startFrame": d, "endFrame": f, "_meta": meta})
+                    precedent = e
                     coupes.append((s, e, pos))
                     pos += f - d + 1
             for ill in a.get("illustrations", []):  # même propos = même instant, silences retirés
@@ -290,7 +305,10 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
                 n = min(n, int(float(mi.GetClipProperty("Frames") or n)))
                 if n > 1:
                     overlays.append(({"mediaPoolItem": mi, "startFrame": 0, "endFrame": n - 1,
-                                      "mediaType": 1, "trackIndex": 2},
+                                      "mediaType": 1, "trackIndex": 2,
+                                      "_meta": ("Green", f"Illustration : {ill['requete']}",
+                                                ill.get("texte", "") + (f"\nCrédit : {ill['credit']}"
+                                                                        if ill.get("credit") else ""))},
                                      c[2] + vers_images(ill["src_start"] - c[0], fps)))
         return out, overlays
 
@@ -301,13 +319,38 @@ def construire_dans_resolve(racine, cats, analyses, cfg):
         if tl is None:
             tl = mp.CreateEmptyTimeline(f"{nom} {datetime.now():%H%M%S}")
         projet.SetCurrentTimeline(tl)
-        ok = mp.AppendToTimeline(clips)
+        nu = lambda c: {k: v for k, v in c.items() if k != "_meta"}
+        ok = mp.AppendToTimeline([nu(c) for c in clips])
         print(f"  Timeline « {nom} » : {len(clips)} coupes ({'ok' if ok else 'ÉCHEC'})")
+        debut = tl.GetStartFrame()
         if overlays:
-            debut = tl.GetStartFrame()
-            pose = [dict(c, recordFrame=debut + off) for c, off in overlays]
+            pose = [dict(nu(c), recordFrame=debut + off) for c, off in overlays]
             ok = mp.AppendToTimeline(pose)
             print(f"    + {len(pose)} illustrations sur V2 ({'ok' if ok else 'ÉCHEC'})")
+        if cfg["marqueurs"]:
+            n = marquer(tl, clips, overlays, debut)
+            print(f"    + {n} marqueurs de couleur")
+
+    def marquer(tl, clips, overlays, debut):
+        """Bleu=dérushé, Jaune=grosse coupe, Violet=gardé entier, Vert=illustration."""
+        n = 0
+        def poser(item, meta):
+            nonlocal n
+            couleur, nom, note = meta
+            if item.AddMarker(0, couleur, nom, note, 1, "derush"):
+                n += 1
+        v1 = tl.GetItemListInTrack("video", 1) or []
+        if len(v1) == len(clips):
+            for item, c in zip(v1, clips):
+                poser(item, c["_meta"])
+        else:
+            print(f"    ! V1 : {len(v1)} éléments pour {len(clips)} coupes, marqueurs V1 ignorés")
+        par_debut = {it.GetStart(): it for it in (tl.GetItemListInTrack("video", 2) or [])}
+        for c, off in overlays:
+            item = par_debut.get(debut + off)
+            if item:
+                poser(item, c["_meta"])
+        return n
 
     tout, tout_ov = [], []
     for cat, liste in analyses.items():

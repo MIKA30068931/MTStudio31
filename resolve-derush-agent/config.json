@@ -31,5 +31,7 @@
   "modele_claude": "claude-haiku-5-5",
   "illustration_duree_min_s": 4,
   "illustration_duree_max_s": 9,
-  "dossier_illustrations": "Illustrations"
+  "dossier_illustrations": "Illustrations",
+  "marqueurs": true,
+  "marqueur_coupe_longue_s": 3
 }

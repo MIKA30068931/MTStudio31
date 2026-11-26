@@ -38,6 +38,19 @@ Réglages en ligne de commande : `--seuil -35` (plus bas = plus sensible), `--si
 | `segment_min_s` | Ignore les bruits très brefs (0,4 s). |
 | `sous_dossiers_sans_derush` | Catégories gardées entières (B-roll, ambiance...). |
 
+## Marqueurs de couleur sur les clips
+Chaque clip de la timeline reçoit un marqueur (nom + note visibles en double-cliquant dessus) :
+
+| Couleur | Sens |
+|---|---|
+| 🔵 Bleu | Passage dérushé ; la note indique le silence supprimé avant et la plage source. |
+| 🟡 Jaune | **Grosse coupe** (silence ≥ 3 s retiré juste avant) : à vérifier en priorité. |
+| 🟣 Violet | Clip gardé entier (B-roll, ambiance, clip sans audio). |
+| 🟢 Vert | Illustration sur V2 : requête, texte dit à ce moment et crédit de l'image. |
+
+Réglages dans `config.json` : `"marqueurs": false` pour désactiver, `marqueur_coupe_longue_s` pour le seuil du jaune.
+Astuce : Timeline > Marqueurs permet de filtrer par couleur et de sauter d'un jaune à l'autre.
+
 ## Illustrations automatiques (`--illustrations`)
 L'agent écoute le dialogue, cherche sur internet des images/vidéos qui illustrent le propos et les pose
 sur la **piste V2**, calées sur le moment où la phrase est dite (même après suppression des silences).
@@ -62,6 +75,7 @@ python derush_agent.py "D:/Montage vidéo" --illustrations
   `CREDITS.json`). Vérifie toujours la licence avant publication.
 - Les illustrations sont des **propositions** : relis la V2 et supprime celles qui ne collent pas.
 - Un bloc qui chevauche une coupe est raccourci au passage conservé.
+- Les marqueurs sont posés sur la V1 seulement si le nombre de clips correspond aux coupes prévues (sinon un avertissement s'affiche).
 - Cette partie est testée avec une transcription et une recherche simulées (pas d'accès internet ici) :
   la recherche réelle et Whisper restent à valider sur ta machine.
 
