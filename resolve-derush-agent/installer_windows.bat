@@ -30,6 +30,8 @@ if not exist "%DEST%" mkdir "%DEST%"
 copy /Y "%~dp0derush_agent.py" "%DEST%" >nul
 copy /Y "%~dp0illustrations.py" "%DEST%" >nul
 copy /Y "%~dp0music.py" "%DEST%" >nul
+copy /Y "%~dp0subtitles.py" "%DEST%" >nul
+copy /Y "%~dp0habillage.py" "%DEST%" >nul
 copy /Y "%~dp0config.json" "%DEST%" >nul
 echo Scripts copies dans : %DEST%
 

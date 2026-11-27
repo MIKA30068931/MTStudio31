@@ -56,6 +56,15 @@ DEFAUTS = {
     "dossier_illustrations": "Illustrations",
     "marqueurs": True,
     "marqueur_coupe_longue_s": 3,
+    "habillage": False,
+    "habillage_couleur_accent": "#F5A623",
+    "habillage_couleur_fond": "#101820",
+    "habillage_police": None,
+    "habillage_resolution": None,
+    "habillage_duree_bandeau_s": 5,
+    "habillage_delai_bandeau_s": 1.0,
+    "habillage_duree_titre_s": 3.5,
+    "dossier_habillage": "Habillage",
     "sous_titres": False,
     "sous_titres_max_car_ligne": 38,
     "sous_titres_max_lignes": 2,
@@ -233,7 +242,7 @@ def vers_images(secondes, fps):
     return int(round(secondes * fps))
 
 
-def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titres=None):
+def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titres=None, habillage=None):
     resolve = obtenir_resolve()
     nom_projet = f"{racine.name} - {datetime.now():%Y-%m-%d %H%M}"
     projet = creer_projet(resolve, nom_projet)
@@ -280,6 +289,31 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
             ills[os.path.normcase(it.GetClipProperty("File Path"))] = it
         mp.SetCurrentFolder(dossier_racine)
         print(f"  Bin Illustrations : {len(ills)}/{len(chemins_ill)} clips importés")
+
+    hab_items = {}
+    chemins_hab = sorted({i["fichier"] for l in (habillage or {}).values() for i in l})
+    if chemins_hab:
+        b = mp.AddSubFolder(dossier_racine, "Habillage")
+        mp.SetCurrentFolder(b)
+        for it in mp.ImportMedia(chemins_hab) or []:
+            hab_items[os.path.normcase(it.GetClipProperty("File Path"))] = it
+        mp.SetCurrentFolder(dossier_racine)
+        print(f"  Bin Habillage : {len(hab_items)}/{len(chemins_hab)} clips importés")
+
+    def hab_overlays(cle):
+        out = []
+        for i in (habillage or {}).get(cle, []):
+            mi = hab_items.get(os.path.normcase(i["fichier"]))
+            if mi is None:
+                continue
+            couleur = "Cyan" if i["type"] == "bandeau" else "Lavender"
+            lib = "Bandeau de nom" if i["type"] == "bandeau" else "Titre de section"
+            out.append(({"mediaPoolItem": mi, "startFrame": 0, "endFrame": i["n"] - 1,
+                         "mediaType": 1, "trackIndex": 3,
+                         "_meta": (couleur, f"{lib} : {i['texte']}",
+                                   "Graphique animé généré par l'agent (piste V3). Pour changer le texte : "
+                                   "modifier habillage.json puis relancer.")}, i["rec_frame"]))
+        return out
 
     def infos_timeline(cat_liste):
         out, overlays, pos = [], [], 0  # pos = images déjà posées sur V1
@@ -357,6 +391,7 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
                   "sur la timeline")
 
     def timeline(nom, clips, overlays=(), srt=None):
+        overlays = list(overlays)
         if not clips:
             return
         tl = mp.CreateEmptyTimeline(nom)
@@ -368,9 +403,15 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
         print(f"  Timeline « {nom} » : {len(clips)} coupes ({'ok' if ok else 'ÉCHEC'})")
         debut = tl.GetStartFrame()
         if overlays:
+            pistes = max(c["trackIndex"] for c, _ in overlays)
+            while tl.GetTrackCount("video") < pistes:  # V2 (illustrations), V3 (habillage)
+                tl.AddTrack("video")
             pose = [dict(nu(c), recordFrame=debut + off) for c, off in overlays]
             ok = mp.AppendToTimeline(pose)
-            print(f"    + {len(pose)} illustrations sur V2 ({'ok' if ok else 'ÉCHEC'})")
+            nb_ill = sum(1 for c, _ in overlays if c["trackIndex"] == 2)
+            nb_hab = len(overlays) - nb_ill
+            print(f"    + {nb_ill} illustrations (V2), {nb_hab} éléments d'habillage (V3) "
+                  f"({'ok' if ok else 'ÉCHEC'})")
         if cfg["marqueurs"]:
             n = marquer(tl, clips, overlays, debut)
             print(f"    + {n} marqueurs de couleur")
@@ -409,9 +450,10 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
                 poser(item, c["_meta"])
         else:
             print(f"    ! V1 : {len(v1)} éléments pour {len(clips)} coupes, marqueurs V1 ignorés")
-        par_debut = {it.GetStart(): it for it in (tl.GetItemListInTrack("video", 2) or [])}
+        par_debut = {(tr, it.GetStart()): it for tr in (2, 3)
+                     for it in (tl.GetItemListInTrack("video", tr) or [])}
         for c, off in overlays:
-            item = par_debut.get(debut + off)
+            item = par_debut.get((c["trackIndex"], debut + off))
             if item:
                 poser(item, c["_meta"])
         return n
@@ -422,9 +464,10 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
         tout_ov += [(c, off + sum(x["endFrame"] - x["startFrame"] + 1 for x in tout)) for c, off in ov]
         tout += clips
         if cfg["creer_timeline_par_categorie"]:
-            timeline(f"{cat} - Dérushé", clips, ov, (sous_titres or {}).get(cat))
+            timeline(f"{cat} - Dérushé", clips, ov + hab_overlays(cat), (sous_titres or {}).get(cat))
     if cfg["creer_timeline_globale"]:
-        tl = timeline(f"{racine.name} - Dérushage global", tout, tout_ov, (sous_titres or {}).get("__global__"))
+        tl = timeline(f"{racine.name} - Dérushage global", tout, tout_ov + hab_overlays("__global__"),
+                      (sous_titres or {}).get("__global__"))
         if musique and tl:
             poser_musique(tl, musique, sum(x["endFrame"] - x["startFrame"] + 1 for x in tout))
     elif musique:
@@ -473,6 +516,8 @@ def main():
                     help="N'ouvre pas Resolve : écrit seulement le rapport des coupes")
     ap.add_argument("--illustrations", action="store_true",
                     help="Transcrit le dialogue, cherche des illustrations sur internet et les pose sur V2")
+    ap.add_argument("--habillage", action="store_true",
+                    help="Ajoute bandeaux de nom et titres de sections animés (piste V3)")
     ap.add_argument("--sous-titres", action="store_true",
                     help="Génère les sous-titres français (.srt) et les pose sur la timeline")
     ap.add_argument("--musique", metavar="AMBIANCE",
@@ -484,6 +529,8 @@ def main():
     args = ap.parse_args(sys.argv[1:] if "resolve" not in globals() else [])
 
     cfg = charger_config(args.config)
+    if args.habillage:
+        cfg["habillage"] = True
     if args.sous_titres:
         cfg["sous_titres"] = True
     if args.musique:
@@ -532,6 +579,12 @@ def main():
         cats_st = [c for c in analyses if doit_derusher(c, cfg)]
         sous_titres = subtitles.generer(analyses, cats_st, cfg, racine / cfg["dossier_sous_titres"])
 
+    plan_hab = None
+    if cfg["habillage"]:
+        import habillage
+        print("Habillage : bandeaux de nom et titres de sections...")
+        plan_hab = habillage.generer(analyses, [c for c in analyses if doit_derusher(c, cfg)], cfg, racine)
+
     if cfg["illustrations"]:
         import illustrations
         dossier_ill = racine / cfg["dossier_illustrations"]
@@ -553,7 +606,7 @@ def main():
     print(f"Rapport : {rapport}")
 
     if not args.analyse_seule:
-        construire_dans_resolve(racine, cats, analyses, cfg, musique, sous_titres)
+        construire_dans_resolve(racine, cats, analyses, cfg, musique, sous_titres, plan_hab)
 
 
 if __name__ == "__main__" or "resolve" in globals():  # 2e cas : lancé depuis Resolve

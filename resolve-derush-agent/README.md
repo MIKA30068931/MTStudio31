@@ -44,6 +44,26 @@ Réglages en ligne de commande : `--seuil -35` (plus bas = plus sensible), `--si
 | `segment_min_s` | Ignore les bruits très brefs (0,4 s). |
 | `sous_dossiers_sans_derush` | Catégories gardées entières (B-roll, ambiance...). |
 
+## Bandeaux de nom et titres de sections (`--habillage`)
+```
+python derush_agent.py "D:/Montage vidéo" --habillage
+```
+- **Titre de section** : au début de chaque catégorie dérushée (fondu + léger glissement + trait d'accent), 3,5 s.
+- **Bandeau de nom** (nom + fonction) : à chaque interview, qui glisse depuis la gauche et ressort, 5 s, dans le premier passage assez long du clip et sans chevaucher le titre.
+- Les graphiques sont des **clips animés avec transparence** (.mov ProRes 4444) rendus par ffmpeg dans `Montage vidéo/Habillage/`, importés dans le bin « Habillage » et posés sur la **piste V3**, avec marqueurs cyan (bandeau) et lavande (titre).
+
+**Tu remplis un seul fichier : `habillage.json`** (créé automatiquement dans ton dossier Montage vidéo au premier lancement) :
+```json
+{"intervenants": {"Interview/entretien1": {"nom": "Marie Dupont", "fonction": "Directrice"}},
+ "sections": {"Interview": "Les témoignages"}}
+```
+- `nom` vide = pas de bandeau. L'agent **n'affiche jamais un nom deviné** : si une clé Anthropic est définie, il écrit au mieux une `_suggestion` (nom dit dans l'interview) que tu recopies après vérification.
+- `sections` : texte du titre ; vide = pas de titre pour cette catégorie.
+- Sans nom rempli, tu obtiens déjà les titres de sections ; remplis les noms puis relance.
+
+**Style** (`config.json`) : `habillage_couleur_accent` (#F5A623), `habillage_couleur_fond` (#101820), `habillage_police` (fichier .ttf ; sinon police système en gras), `habillage_duree_bandeau_s`, `habillage_delai_bandeau_s`, `habillage_duree_titre_s`.
+Limites : le texte n'est pas modifiable dans Resolve (corrige `habillage.json` et relance) ; chaque graphique pèse 8 à 15 Mo et demande quelques secondes de rendu ; la police par défaut est une police système, indique la tienne pour respecter ta charte.
+
 ## Sous-titres français (`--sous-titres`)
 ```
 python derush_agent.py "D:/Montage vidéo" --sous-titres

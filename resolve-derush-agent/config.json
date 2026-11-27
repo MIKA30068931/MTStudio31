@@ -52,5 +52,14 @@
   "sous_titres_duree_max_s": 6,
   "sous_titres_duree_min_s": 1.0,
   "dossier_sous_titres": "Sous-titres",
-  "vocabulaire": []
+  "vocabulaire": [],
+  "habillage": false,
+  "habillage_couleur_accent": "#F5A623",
+  "habillage_couleur_fond": "#101820",
+  "habillage_police": null,
+  "habillage_resolution": null,
+  "habillage_duree_bandeau_s": 5,
+  "habillage_delai_bandeau_s": 1.0,
+  "habillage_duree_titre_s": 3.5,
+  "dossier_habillage": "Habillage"
 }
