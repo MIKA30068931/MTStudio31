@@ -14,7 +14,13 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
-## Installation
+## Installation rapide
+- **Windows** : double-clic sur `installer_windows.bat` (installe Python, ffmpeg, Whisper et copie les scripts dans Resolve).
+- **macOS / Linux** : `bash installer_mac_linux.sh`.
+- Vérification à tout moment : `python verifier_installation.py`.
+- Le modèle Whisper (~500 Mo pour « small ») se télécharge tout seul au premier usage des illustrations.
+
+## Installation manuelle
 1. Installer Python 3 et **ffmpeg** (dans le PATH).
 2. Resolve : Préférences > Système > Général > **Scripts externes = Local**.
 3. Copier `derush_agent.py` et `config.json` dans le dossier Scripts de Resolve :
