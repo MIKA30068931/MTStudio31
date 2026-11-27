@@ -11,9 +11,12 @@ Ce que fait l'agent :
   4. Crée une timeline « <catégorie> - Dérushé » par catégorie + une timeline globale.
 
 Usage :
-  # Depuis Resolve (Studio ou gratuit) : Espace de travail > Scripts > derush_agent
+  # Dans Resolve Studio (ou Resolve gratuit <= 21.0) : Espace de travail > Scripts > derush_agent
+  # Resolve gratuit 21.1+ (sans scripting) : mode export, voir ci-dessous (--export)
   # Depuis un terminal (Resolve Studio ouvert) :
   python derush_agent.py "D:/Montage vidéo"
+  # Sans scripting (Resolve gratuit 21.1) : écrit un FCPXML à importer dans Resolve :
+  python derush_agent.py "D:/Montage vidéo" --export --sous-titres
   # Test sans Resolve (affiche seulement les coupes prévues) :
   python derush_agent.py "D:/Montage vidéo" --analyse-seule
 """
@@ -177,9 +180,12 @@ def analyser_clip(chemin, cfg, derusher=True):
 def scanner(racine, cfg):
     """{catégorie: [fichiers]}  - les fichiers à la racine vont dans « Vrac »."""
     exts = {e.lower() for e in cfg["extensions"]}
+    generes = {cfg[k].lower() for k in ("dossier_illustrations", "dossier_habillage",
+                                        "dossier_sous_titres", "musique_dossier")} | {"export resolve"}
     cats = {}
     for dossier, sous, fichiers in os.walk(racine):
-        sous[:] = sorted(d for d in sous if not d.startswith("."))
+        sous[:] = sorted(d for d in sous if not d.startswith(".")
+                         and not (Path(dossier) == Path(racine) and d.lower() in generes))
         rel = Path(dossier).relative_to(racine)
         nom = rel.parts[0] if rel.parts else "Vrac"
         for f in sorted(fichiers):
@@ -196,6 +202,10 @@ def doit_derusher(categorie, cfg):
 # --------------------------------------------------------------------------- #
 #  Connexion à Resolve
 # --------------------------------------------------------------------------- #
+class ResolveIndisponible(Exception):
+    """Resolve ne répond pas aux scripts (version gratuite 21.1, Resolve fermé, API absente...)."""
+
+
 def obtenir_resolve():
     try:  # lancé depuis Resolve : l'objet est injecté
         return resolve  # noqa: F821
@@ -216,13 +226,12 @@ def obtenir_resolve():
     try:
         import DaVinciResolveScript as dvr
     except ImportError:
-        sys.exit("Impossible de charger l'API Resolve. Ouvrez DaVinci Resolve (Studio "
-                 "pour un lancement externe) ou lancez le script depuis "
-                 "Espace de travail > Scripts.")
+        raise ResolveIndisponible("Impossible de charger l'API Resolve (Studio requis hors de Resolve ; "
+                                  "la version gratuite 21.1 n'a plus de scripting).")
     r = dvr.scriptapp("Resolve")
     if r is None:
-        sys.exit("DaVinci Resolve ne répond pas. Ouvrez-le, puis Préférences > Système > "
-                 "Général > « Scripts externes » = Local.")
+        raise ResolveIndisponible("DaVinci Resolve ne répond pas aux scripts (fermé, ou scripting "
+                                  "indisponible dans cette édition).")
     return r
 
 
@@ -516,6 +525,9 @@ def main():
                     help="N'ouvre pas Resolve : écrit seulement le rapport des coupes")
     ap.add_argument("--illustrations", action="store_true",
                     help="Transcrit le dialogue, cherche des illustrations sur internet et les pose sur V2")
+    ap.add_argument("--export", action="store_true",
+                    help="N'utilise pas le scripting : écrit un fichier FCPXML à importer dans Resolve "
+                         "(fonctionne avec la version gratuite)")
     ap.add_argument("--habillage", action="store_true",
                     help="Ajoute bandeaux de nom et titres de sections animés (piste V3)")
     ap.add_argument("--sous-titres", action="store_true",
@@ -605,8 +617,26 @@ def main():
     rapport.write_text(json.dumps(analyses, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Rapport : {rapport}")
 
-    if not args.analyse_seule:
-        construire_dans_resolve(racine, cats, analyses, cfg, musique, sous_titres, plan_hab)
+    if args.analyse_seule:
+        return
+    if not args.export:
+        try:
+            construire_dans_resolve(racine, cats, analyses, cfg, musique, sous_titres, plan_hab)
+            return
+        except ResolveIndisponible as e:
+            print(f"\n{e}\n-> Passage en mode export : fichier FCPXML à importer dans Resolve.")
+    import export_timeline
+    print("Export de la timeline (FCPXML)...")
+    fichier = export_timeline.exporter(analyses, cats, cfg, racine,
+                                       racine / "Export Resolve" / f"{racine.name}.fcpxml", musique, plan_hab)
+    print(f"\nFichier créé : {fichier}")
+    print("Dans DaVinci Resolve :")
+    print("  1. Fichier > Importer > Timeline... puis choisis ce fichier .fcpxml")
+    print("  2. Si Resolve demande de lier les médias, coche « Chercher les médias dans... » et choisis "
+          "ton dossier Montage vidéo")
+    if sous_titres:
+        print("  3. Sous-titres : ouvre la timeline, puis Fichier > Importer > Sous-titres... et choisis "
+              f"le .srt du dossier {cfg['dossier_sous_titres']}/")
 
 
 if __name__ == "__main__" or "resolve" in globals():  # 2e cas : lancé depuis Resolve

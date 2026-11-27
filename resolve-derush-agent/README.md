@@ -14,6 +14,26 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
+## Resolve gratuit 21.1 : mode export (sans scripting)
+D'après les informations trouvées (non confirmées par les pages officielles, illisibles depuis ma session),
+le scripting est réservé à **DaVinci Resolve Studio** depuis la 21.1 ; la version gratuite n'a plus de menu
+Scripts pour Python. Pour ce cas, l'agent travaille **en dehors de Resolve** et livre des fichiers à importer :
+```
+py -3 derush_agent.py "D:\Montage vidéo" --export --sous-titres --habillage
+```
+(ajoute `--illustrations` et/ou `--musique "calme"` si tu veux). Résultat dans `Montage vidéo/` :
+- `Export Resolve/<nom>.fcpxml` : une timeline par catégorie + une globale, silences retirés, avec
+  V1 = passages conservés, V2 = illustrations, V3 = bandeaux et titres, A2 = musique (timeline globale) ;
+- `Sous-titres/*.srt`, `Illustrations/`, `Habillage/`, `Musique/_rendus/` et les fichiers de crédits.
+
+**Dans Resolve :** Fichier > Importer > Timeline... > choisis le `.fcpxml`. Si Resolve demande de lier les médias,
+indique ton dossier Montage vidéo. Sous-titres : ouvre la timeline, puis Fichier > Importer > Sous-titres...
+Si tu lances la commande sans `--export` et que Resolve ne répond pas aux scripts, l'agent bascule tout seul en mode export.
+
+Limites : le fichier FCPXML n'a pas pu être testé dans Resolve ici (seule sa structure est vérifiée) ; les couleurs
+des marqueurs ne passent pas par ce format (seules les « grosses coupes » sont marquées) ; la musique est attachée
+à la timeline globale uniquement.
+
 ## Installation rapide
 - **Windows** : double-clic sur `installer_windows.bat` (installe Python, ffmpeg, Whisper et copie les scripts dans Resolve).
 - **macOS / Linux** : `bash installer_mac_linux.sh`.
