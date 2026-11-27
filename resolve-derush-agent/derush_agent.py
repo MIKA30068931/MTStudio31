@@ -136,6 +136,15 @@ def detecter_silences(chemin, duree, cfg):
     return silences
 
 
+def niveaux(chemin):
+    """(volume moyen, volume max) en dB, mesurés par ffmpeg ; None si indisponible."""
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(chemin), "-vn",
+                          "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True)
+    m = re.search(r"mean_volume:\s*(-?[\d.]+) dB", out.stderr)
+    x = re.search(r"max_volume:\s*(-?[\d.]+) dB", out.stderr)
+    return (float(m.group(1)), float(x.group(1))) if m and x else None
+
+
 def segments_parole(duree, silences, cfg):
     """Complément des silences, élargi par les marges, fusionné, filtré."""
     bruts, curseur = [], 0.0
@@ -168,6 +177,16 @@ def analyser_clip(chemin, cfg, derusher=True):
         sil = detecter_silences(chemin, duree, cfg)
         info["segments"] = segments_parole(duree, sil, cfg)
         info["mode"] = "dérushé"
+        if not info["segments"]:  # tout est « silence » : on ne supprime jamais un clip en entier
+            niv = niveaux(chemin)
+            info["segments"] = [(0.0, duree)]
+            info["mode"] = "gardé entier (aucune parole détectée)"
+            if niv:
+                sugg = int(niv[0] - 8)
+                print(f"    ! {Path(chemin).name} : tout est sous le seuil ({cfg['seuil_silence_db']} dB). "
+                      f"Volume moyen {niv[0]:.0f} dB, max {niv[1]:.0f} dB. Essaie --seuil {sugg}")
+            else:
+                print(f"    ! {Path(chemin).name} : aucune parole détectée, clip gardé entier")
     gardé = sum(e - s for s, e in info["segments"])
     info["gardé_s"] = round(gardé, 3)
     info["supprimé_s"] = round(max(0.0, duree - gardé), 3)
