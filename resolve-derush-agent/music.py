@@ -33,7 +33,7 @@ def ambiance_auto(analyses, cfg):
     for liste in analyses.values():
         for a in liste:
             if a.get("audio") and a["mode"] == "dérushé":
-                segs = a.get("transcript") or ill.transcrire(a["fichier"], cfg)
+                segs = ill.transcript_clip(a, cfg)
                 texte += " ".join(s["text"] for s in segs) + " "
             if len(texte) > 4000:
                 break

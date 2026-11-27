@@ -56,6 +56,13 @@ DEFAUTS = {
     "dossier_illustrations": "Illustrations",
     "marqueurs": True,
     "marqueur_coupe_longue_s": 3,
+    "sous_titres": False,
+    "sous_titres_max_car_ligne": 38,
+    "sous_titres_max_lignes": 2,
+    "sous_titres_duree_max_s": 6,
+    "sous_titres_duree_min_s": 1.0,
+    "dossier_sous_titres": "Sous-titres",
+    "vocabulaire": [],
     "musique": None,
     "musique_dossier": "Musique",
     "musique_sources": ["local", "jamendo", "openverse"],
@@ -226,7 +233,7 @@ def vers_images(secondes, fps):
     return int(round(secondes * fps))
 
 
-def construire_dans_resolve(racine, cats, analyses, cfg, musique=None):
+def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titres=None):
     resolve = obtenir_resolve()
     nom_projet = f"{racine.name} - {datetime.now():%Y-%m-%d %H%M}"
     projet = creer_projet(resolve, nom_projet)
@@ -320,7 +327,36 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None):
                                      c[2] + vers_images(ill["src_start"] - c[0], fps)))
         return out, overlays
 
-    def timeline(nom, clips, overlays=()):
+    cache_st = {}
+
+    def poser_srt(tl, chemin):
+        """Importe le .srt dans le bin « Sous-titres » et le pose sur la piste de sous-titres."""
+        if not chemin:
+            return
+        if "bin" not in cache_st:
+            cache_st["bin"] = mp.AddSubFolder(dossier_racine, "Sous-titres")
+        mp.SetCurrentFolder(cache_st["bin"])
+        imp = mp.ImportMedia([chemin]) or []
+        mp.SetCurrentFolder(dossier_racine)
+        if not imp:
+            print(f"    ! sous-titres non importés : {chemin}")
+            return
+        try:
+            while tl.GetTrackCount("subtitle") < 1:
+                tl.AddTrack("subtitle")
+            mp.AppendToTimeline([{"mediaPoolItem": imp[0], "trackIndex": 1,
+                                  "recordFrame": tl.GetStartFrame()}])
+            pose = bool(tl.GetItemListInTrack("subtitle", 1))
+        except Exception as e:
+            print(f"    (pose automatique impossible : {e})")
+            pose = False
+        if pose:
+            print("    + sous-titres posés sur la piste de sous-titres")
+        else:
+            print("    ! pose automatique non confirmée : glisse le fichier du bin « Sous-titres » "
+                  "sur la timeline")
+
+    def timeline(nom, clips, overlays=(), srt=None):
         if not clips:
             return
         tl = mp.CreateEmptyTimeline(nom)
@@ -338,6 +374,7 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None):
         if cfg["marqueurs"]:
             n = marquer(tl, clips, overlays, debut)
             print(f"    + {n} marqueurs de couleur")
+        poser_srt(tl, srt)
         return tl
 
     def poser_musique(tl, musique, frames_tl):
@@ -385,9 +422,9 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None):
         tout_ov += [(c, off + sum(x["endFrame"] - x["startFrame"] + 1 for x in tout)) for c, off in ov]
         tout += clips
         if cfg["creer_timeline_par_categorie"]:
-            timeline(f"{cat} - Dérushé", clips, ov)
+            timeline(f"{cat} - Dérushé", clips, ov, (sous_titres or {}).get(cat))
     if cfg["creer_timeline_globale"]:
-        tl = timeline(f"{racine.name} - Dérushage global", tout, tout_ov)
+        tl = timeline(f"{racine.name} - Dérushage global", tout, tout_ov, (sous_titres or {}).get("__global__"))
         if musique and tl:
             poser_musique(tl, musique, sum(x["endFrame"] - x["startFrame"] + 1 for x in tout))
     elif musique:
@@ -436,6 +473,8 @@ def main():
                     help="N'ouvre pas Resolve : écrit seulement le rapport des coupes")
     ap.add_argument("--illustrations", action="store_true",
                     help="Transcrit le dialogue, cherche des illustrations sur internet et les pose sur V2")
+    ap.add_argument("--sous-titres", action="store_true",
+                    help="Génère les sous-titres français (.srt) et les pose sur la timeline")
     ap.add_argument("--musique", metavar="AMBIANCE",
                     help='Ajoute une musique de fond : "calme, inspirant" ou "auto" (déduit du dialogue)')
     ap.add_argument("--musique-choisir", action="store_true", help="Propose la liste de pistes à choisir")
@@ -445,6 +484,8 @@ def main():
     args = ap.parse_args(sys.argv[1:] if "resolve" not in globals() else [])
 
     cfg = charger_config(args.config)
+    if args.sous_titres:
+        cfg["sous_titres"] = True
     if args.musique:
         cfg["musique"] = args.musique
     if args.musique_dossier:
@@ -484,6 +525,13 @@ def main():
     print(f"Analyse en {time.time() - t0:.0f}s : {tot_in / 60:.1f} min -> {tot_out / 60:.1f} min "
           f"({(1 - tot_out / tot_in) * 100 if tot_in else 0:.0f}% supprimé)")
 
+    sous_titres = None
+    if cfg["sous_titres"]:
+        import subtitles
+        print("Sous-titres : transcription locale puis découpage...")
+        cats_st = [c for c in analyses if doit_derusher(c, cfg)]
+        sous_titres = subtitles.generer(analyses, cats_st, cfg, racine / cfg["dossier_sous_titres"])
+
     if cfg["illustrations"]:
         import illustrations
         dossier_ill = racine / cfg["dossier_illustrations"]
@@ -505,7 +553,7 @@ def main():
     print(f"Rapport : {rapport}")
 
     if not args.analyse_seule:
-        construire_dans_resolve(racine, cats, analyses, cfg, musique)
+        construire_dans_resolve(racine, cats, analyses, cfg, musique, sous_titres)
 
 
 if __name__ == "__main__" or "resolve" in globals():  # 2e cas : lancé depuis Resolve

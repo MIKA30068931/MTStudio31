@@ -44,6 +44,22 @@ Réglages en ligne de commande : `--seuil -35` (plus bas = plus sensible), `--si
 | `segment_min_s` | Ignore les bruits très brefs (0,4 s). |
 | `sous_dossiers_sans_derush` | Catégories gardées entières (B-roll, ambiance...). |
 
+## Sous-titres français (`--sous-titres`)
+```
+python derush_agent.py "D:/Montage vidéo" --sous-titres
+```
+1. **Transcription locale** (Whisper) avec l'horodatage de **chaque mot** : un seul passage sert aussi aux illustrations.
+2. Seuls les mots des **passages conservés** sont gardés, et leurs temps sont recalés sur la timeline (silences retirés) : les sous-titres collent au montage.
+3. **Découpage lisible** : 2 lignes de 38 caractères maximum, coupure aux fins de phrases, aux vraies pauses et aux changements de plan, 1 s mini et 6 s maxi par sous-titre.
+4. **Typographie française** : espace insécable avant `? ! ; :` et aux guillemets.
+5. Un fichier `.srt` par catégorie + `global.srt` dans `Montage vidéo/Sous-titres/`, importés dans le bin « Sous-titres » et posés sur la piste de sous-titres de chaque timeline.
+
+Fonctionne aussi avec `--analyse-seule` (sans Resolve) : tu récupères les `.srt`, utilisables dans n'importe quel logiciel.
+Noms propres mal transcrits ? Ajoute-les dans `config.json` : `"vocabulaire": ["Mika", "MTStudio"]`.
+Réglages : `sous_titres_max_car_ligne`, `sous_titres_max_lignes`, `sous_titres_duree_min_s`, `sous_titres_duree_max_s`.
+
+Limites : Whisper se trompe parfois (accents, noms propres, chiffres) : **relis les sous-titres**. La pose automatique sur la piste de sous-titres n'a pas été testée dans Resolve 21 ; si elle n'est pas confirmée, l'agent le dit et tu glisses le `.srt` du bin sur la timeline. Le style (police, taille, couleur) se règle dans Resolve (Inspecteur, sous-titres).
+
 ## Marqueurs de couleur sur les clips
 Chaque clip de la timeline reçoit un marqueur (nom + note visibles en double-cliquant dessus) :
 

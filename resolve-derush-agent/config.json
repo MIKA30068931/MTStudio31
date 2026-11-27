@@ -45,5 +45,12 @@
   "musique_ducking": true,
   "musique_ducking_ratio": 10,
   "musique_fade_in_s": 1.5,
-  "musique_fade_out_s": 3
+  "musique_fade_out_s": 3,
+  "sous_titres": false,
+  "sous_titres_max_car_ligne": 38,
+  "sous_titres_max_lignes": 2,
+  "sous_titres_duree_max_s": 6,
+  "sous_titres_duree_min_s": 1.0,
+  "dossier_sous_titres": "Sous-titres",
+  "vocabulaire": []
 }

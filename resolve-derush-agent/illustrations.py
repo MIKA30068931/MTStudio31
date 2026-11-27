@@ -29,15 +29,36 @@ voilà donc ensuite quand puis parce""".split())
 
 
 # ------------------------------ transcription ------------------------------ #
+_MODELE = {}
+
+
 def transcrire(chemin, cfg):
-    """Segments [{start, end, text}] en secondes du fichier source (local, faster-whisper)."""
+    """Segments [{start, end, text, words}] en secondes du fichier source (local, faster-whisper)."""
     try:
         from faster_whisper import WhisperModel
     except ImportError:
         raise RuntimeError("Installe faster-whisper :  pip install faster-whisper")
-    modele = WhisperModel(cfg.get("whisper_modele", "small"), device="auto", compute_type="auto")
-    segs, _ = modele.transcribe(str(chemin), language=cfg.get("langue", "fr"), vad_filter=True)
-    return [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in segs if s.text.strip()]
+    nom = cfg.get("whisper_modele", "small")
+    if nom not in _MODELE:  # chargé une seule fois pour tous les clips
+        _MODELE[nom] = WhisperModel(nom, device="auto", compute_type="auto")
+    vocab = cfg.get("vocabulaire") or []
+    segs, _ = _MODELE[nom].transcribe(
+        str(chemin), language=cfg.get("langue", "fr"), vad_filter=True, word_timestamps=True,
+        initial_prompt=(", ".join(vocab) + ".") if vocab else None)
+    out = []
+    for s in segs:
+        if s.text.strip():
+            out.append({"start": s.start, "end": s.end, "text": s.text.strip(),
+                        "words": [{"w": w.word.strip(), "start": w.start, "end": w.end}
+                                  for w in (s.words or []) if w.word.strip()]})
+    return out
+
+
+def transcript_clip(analyse, cfg):
+    """Transcription d'un clip, calculée une seule fois (illustrations, sous-titres, ambiance)."""
+    if "transcript" not in analyse:
+        analyse["transcript"] = transcrire(analyse["fichier"], cfg)
+    return analyse["transcript"]
 
 
 def regrouper(segments, duree_min, duree_max):
@@ -225,7 +246,7 @@ def planifier_illustrations(analyse, cfg, dossier_out):
     if not analyse["audio"]:
         return []
     dossier_out.mkdir(parents=True, exist_ok=True)
-    segs = transcrire(analyse["fichier"], cfg)
+    segs = transcript_clip(analyse, cfg)
     blocs = regrouper(segs, cfg.get("illustration_duree_min_s", 4), cfg.get("illustration_duree_max_s", 9))
     requetes = construire_requetes(blocs, cfg)
     credits_path = dossier_out / "CREDITS.json"
