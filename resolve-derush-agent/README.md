@@ -146,6 +146,17 @@ La musique est posée sur la piste **A2** de la timeline globale (marqueur 🌸 
 > télécharger leur bibliothèque. L'offre gratuite et l'affiliation ne donnent pas de musique libre (l'affiliation
 > sert à toucher une commission) et la licence est liée à ton abonnement et à tes chaînes. D'où le dossier `Musique/`.
 
+**Musique par séquence avec J-cut et L-cut (par défaut) :** chaque catégorie de rushs est une séquence avec sa musique.
+- **J-cut** : la musique de la séquence suivante démarre **avant** le changement d'image (1,5 s par défaut).
+- **L-cut** : quand une musique se termine, elle **continue un peu** sur les paroles de la séquence suivante (2,5 s) en
+  s'estompant sous la voix.
+- Aux jonctions, les deux musiques se **chevauchent en fondu enchaîné** : elles sont posées en alternance sur **A2 et A3**.
+- Chaque extrait est baissé uniquement sous la voix de **sa** fenêtre. Si plusieurs pistes ont été trouvées, chaque séquence
+  prend une piste différente ; sinon la même continue là où elle s'était arrêtée.
+- Réglages (`config.json`) : `musique_j_cut_s`, `musique_l_cut_s`, `musique_categories` (liste de catégories qui
+  reçoivent de la musique ; vide = toutes), `musique_section_min_s` (séquences plus courtes ignorées),
+  `musique_sections: false` pour revenir à une seule nappe continue.
+
 **Rendu automatique (pratiques de post-production) :**
 - niveau normalisé (-26 LUFS) pour rester sous la voix ;
 - **ducking** : la musique baisse automatiquement quand quelqu'un parle et remonte sur les plans muets (B-roll) ;

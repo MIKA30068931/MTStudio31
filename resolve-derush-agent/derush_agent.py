@@ -87,6 +87,11 @@ DEFAUTS = {
     "musique_lufs": -26,
     "musique_ducking": True,
     "musique_ducking_ratio": 10,
+    "musique_sections": True,
+    "musique_j_cut_s": 1.5,
+    "musique_l_cut_s": 2.5,
+    "musique_categories": [],
+    "musique_section_min_s": 3,
     "musique_fade_in_s": 1.5,
     "musique_fade_out_s": 3,
 }
@@ -453,20 +458,27 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
         return tl
 
     def poser_musique(tl, musique, frames_tl):
+        clips_m = musique.get("clips") or [{"fichier": musique["fichier"], "rec_frame": 0, "piste": 0,
+                                            "n": frames_tl, "titre": musique["titre"]}]
         b = mp.AddSubFolder(dossier_racine, "Musique")
         mp.SetCurrentFolder(b)
-        imp = mp.ImportMedia([musique["fichier"]]) or []
+        imp = mp.ImportMedia([c["fichier"] for c in clips_m]) or []
         mp.SetCurrentFolder(dossier_racine)
-        if not imp:
-            print("  ! musique non importée")
-            return
-        n = min(frames_tl, int(float(imp[0].GetClipProperty("Frames") or frames_tl)))
-        while tl.GetTrackCount("audio") < 2:
+        par_chemin = {os.path.normcase(it.GetClipProperty("File Path")): it for it in imp}
+        pistes = 1 + max(c["piste"] for c in clips_m) + 1
+        while tl.GetTrackCount("audio") < pistes:  # A2 et A3 en alternance (chevauchements J/L-cut)
             tl.AddTrack("audio", "stereo")
         debut = tl.GetStartFrame()
-        ok = mp.AppendToTimeline([{"mediaPoolItem": imp[0], "startFrame": 0, "endFrame": n - 1,
-                                   "mediaType": 2, "trackIndex": 2, "recordFrame": debut}])
-        print(f"    + musique « {musique['titre']} » sur A2 ({'ok' if ok else 'ÉCHEC'})")
+        n_ok = 0
+        for c in clips_m:
+            it = par_chemin.get(os.path.normcase(c["fichier"]))
+            if it is None:
+                continue
+            n = min(c["n"], int(float(it.GetClipProperty("Frames") or c["n"])))
+            if mp.AppendToTimeline([{"mediaPoolItem": it, "startFrame": 0, "endFrame": n - 1, "mediaType": 2,
+                                     "trackIndex": 2 + c["piste"], "recordFrame": debut + c["rec_frame"]}]):
+                n_ok += 1
+        print(f"    + musique « {musique['titre']} » : {n_ok}/{len(clips_m)} extraits sur A2/A3")
         tl.AddMarker(debut, "Pink", f"Musique : {musique['titre']}",
                      f"Ambiance : {', '.join(musique['tags'])}\nCrédit : {musique['credit']}", 1, "derush")
 

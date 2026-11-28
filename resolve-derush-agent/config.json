@@ -67,5 +67,10 @@
   "logo_duree_s": 3.0,
   "logo_taille": 0.16,
   "logo_position": "haut-droite",
-  "logo_repetition_min_s": 30
+  "logo_repetition_min_s": 30,
+  "musique_sections": true,
+  "musique_j_cut_s": 1.5,
+  "musique_l_cut_s": 2.5,
+  "musique_categories": [],
+  "musique_section_min_s": 3
 }

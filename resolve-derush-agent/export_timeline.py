@@ -101,8 +101,10 @@ def plan(analyses, categories_incluses, fps, plan_hab_items, musique):
         overlays.append({"fichier": i["fichier"], "rec": i["rec_frame"], "n": i["n"], "lane": lane,
                          "nom": pref + i["texte"]})
     if musique:
-        overlays.append({"fichier": musique["fichier"], "rec": 0, "n": int(round(musique["duree"] * fps)),
-                         "lane": -1, "nom": "Musique : " + musique["titre"], "audio": True})
+        for mc in musique.get("clips") or [{"fichier": musique["fichier"], "rec_frame": 0, "piste": 0,
+                                            "n": int(round(musique["duree"] * fps)), "titre": musique["titre"]}]:
+            overlays.append({"fichier": mc["fichier"], "rec": mc["rec_frame"], "n": mc["n"],
+                             "lane": -1 - mc["piste"], "nom": "Musique : " + mc["titre"], "audio": True})
     return coupes, overlays, pos
 
 

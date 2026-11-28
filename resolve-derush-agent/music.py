@@ -195,8 +195,61 @@ def mixer(musique, ref, duree, sortie, cfg):
     return sortie
 
 
+def mixer_fenetre(musique, ref, debut_s, duree_s, offset_s, fade_in, fade_out, sortie, cfg):
+    """Extrait de musique pour la fenêtre [debut_s, debut_s+duree_s] de la timeline : normalisé, baissé sous la
+    voix de CETTE fenêtre, fondus d'entrée et de sortie. `offset_s` = endroit du morceau où commencer."""
+    base = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
+    norm = Path(str(sortie) + ".norm.wav")
+    subprocess.run(base + ["-i", str(musique), "-af",
+                   "aformat=sample_rates=48000:channel_layouts=stereo,aloop=loop=-1:size=2000000000,"
+                   f"atrim=start={offset_s:.3f}:end={offset_s + duree_s:.3f},asetpts=PTS-STARTPTS,"
+                   f"loudnorm=I={cfg['musique_lufs']}:TP=-2:LRA=11,"
+                   f"aformat=sample_rates=48000:channel_layouts=stereo,apad,atrim=0:{duree_s:.3f}",
+                   "-c:a", "pcm_s16le", str(norm)], check=True)
+    if cfg["musique_ducking"]:
+        fc = ("[1:a]aformat=sample_rates=48000:channel_layouts=stereo[k];"
+              f"[0:a][k]sidechaincompress=threshold=0.02:ratio={cfg['musique_ducking_ratio']}"
+              ":attack=30:release=600:makeup=1[d];")
+    else:
+        fc = "[0:a]anull[d];"
+    fc += (f"[d]afade=t=in:d={fade_in:.3f},"
+           f"afade=t=out:st={max(0.0, duree_s - fade_out):.3f}:d={fade_out:.3f}[out]")
+    subprocess.run(base + ["-i", str(norm), "-ss", f"{debut_s:.3f}", "-t", f"{duree_s:.3f}", "-i", str(ref),
+                   "-filter_complex", fc, "-map", "[out]", "-t", f"{duree_s:.3f}",
+                   "-c:a", "pcm_s16le", str(sortie)], check=True)
+    norm.unlink(missing_ok=True)
+    return sortie
+
+
+def sections_musique(analyses, cfg, fps):
+    """Séquences (une par catégorie) avec début/fin en images sur la timeline globale, et total d'images."""
+    import subtitles as st
+    pos, sec = 0, []
+    voulues = {c.lower() for c in cfg.get("musique_categories") or []}
+    for cat, liste in analyses.items():
+        a0 = pos
+        for a in liste:
+            _, pos = st.passages(a, fps, pos)
+        if (not voulues or cat.lower() in voulues) and (pos - a0) / fps >= cfg["musique_section_min_s"]:
+            sec.append({"cat": cat, "a": a0, "b": pos})
+    return sec, pos
+
+
+def _fichier_piste(piste, dossier):
+    if "fichier" not in piste:
+        brut = dossier / (re.sub(r"[^\w-]+", "_", piste["titre"])[:40] + ".mp3")
+        ill.telecharger(piste["url"], brut)
+        piste["fichier"] = str(brut)
+    return piste["fichier"]
+
+
 def preparer_musique(demande, analyses, racine, cfg, interactif=False):
-    """Retourne {"fichier", "duree", "credit", "titre", "tags"} ou None."""
+    """
+    Musique par séquence avec J-cut (la musique démarre avant l'image) et L-cut (elle se termine après, sous la
+    voix de la séquence suivante), en fondu enchaîné aux jonctions.
+    Retourne {"clips": [...], "fichier", "duree", "credit", "titre", "tags"} ou None.
+    """
+    import subtitles as st
     print("Musique : recherche d'une piste...")
     ambiance = ambiance_auto(analyses, cfg) if demande.strip().lower() == "auto" else demande
     tags = vers_tags(ambiance, cfg)
@@ -205,21 +258,49 @@ def preparer_musique(demande, analyses, racine, cfg, interactif=False):
     if not cands:
         print("  ! aucune musique trouvée (mets des pistes dans 'Musique/' ou définis JAMENDO_CLIENT_ID)")
         return None
-    piste = choisir(cands, interactif)
+    principale = choisir(cands, interactif)
     dossier = racine / cfg["musique_dossier"]
     dossier.mkdir(exist_ok=True)
-    if "fichier" not in piste:
-        brut = dossier / (re.sub(r"[^\w-]+", "_", piste["titre"])[:40] + ".mp3")
-        ill.telecharger(piste["url"], brut)
-        piste["fichier"] = str(brut)
+    fps = st.fps_timeline(analyses, cfg)
+    if cfg.get("musique_sections", True):
+        sec, total = sections_musique(analyses, cfg, fps)
+        J, L = cfg["musique_j_cut_s"], cfg["musique_l_cut_s"]
+    else:  # ancienne manière : une seule nappe sur toute la timeline
+        _, total = sections_musique(analyses, dict(cfg, musique_section_min_s=0), fps)
+        sec, J, L = [{"cat": "tout", "a": 0, "b": total}], 0.0, 0.0
+    if not sec:
+        print("  ! aucune séquence assez longue pour la musique")
+        return None
+    # une piste différente par séquence si on en a plusieurs ; sinon la même, qui continue là où elle s'était arrêtée
+    pistes = [principale] + [c for c in cands if c is not principale][:max(0, min(3, len(sec) - 1))]
+    for p in pistes:
+        _fichier_piste(p, dossier)
+    total_s = total / fps
+    clips, decalage = [], {}
+    (dossier / "_rendus").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
-        ref, duree = reference_dialogue(analyses, Path(tmp))
-        (dossier / "_rendus").mkdir(exist_ok=True)
-        sortie = dossier / "_rendus" / "musique_mixee.wav"
-        mixer(piste["fichier"], ref, duree, sortie, cfg)
+        ref, _ = reference_dialogue(analyses, Path(tmp))
+        for k, sc in enumerate(sec):
+            debut = max(0.0, sc["a"] / fps - J)          # J-cut : démarre avant le changement d'image
+            fin = min(total_s, sc["b"] / fps + L)         # L-cut : continue après, sous la voix suivante
+            duree = fin - debut
+            if duree < 1.0:
+                continue
+            fi = cfg["musique_fade_in_s"] if debut <= 0 else min(J + 0.7, duree / 2)
+            fo = cfg["musique_fade_out_s"] if fin >= total_s - 0.01 else min(L + 1.0, duree / 2)
+            idx = k % len(pistes)
+            off = decalage.get(idx, 0.0)
+            sortie = dossier / "_rendus" / f"musique_{k + 1:02d}.wav"
+            mixer_fenetre(pistes[idx]["fichier"], ref, debut, duree, off, fi, fo, sortie, cfg)
+            decalage[idx] = off + duree
+            clips.append({"fichier": str(sortie), "rec_frame": int(round(debut * fps)),
+                          "n": int(round(duree * fps)), "piste": k % 2, "cat": sc["cat"],
+                          "titre": pistes[idx]["titre"]})
+            print(f"  Séquence « {sc['cat']} » : {debut:.1f}s -> {fin:.1f}s (J-cut {J:g}s, L-cut {L:g}s)")
     log = dossier / "CREDITS_MUSIQUE.json"
-    log.write_text(json.dumps({"ambiance": tags, **{k: piste[k] for k in
-                   ("titre", "source", "licence", "credit")}}, ensure_ascii=False, indent=2), "utf-8")
-    print(f"  Piste : {piste['titre']} ({piste['source']}) -> {sortie.name}")
-    return {"fichier": str(sortie), "duree": duree, "credit": piste["credit"],
-            "titre": piste["titre"], "tags": tags}
+    log.write_text(json.dumps({"ambiance": tags, "pistes": [{k: p[k] for k in ("titre", "source", "licence", "credit")}
+                                                            for p in pistes]}, ensure_ascii=False, indent=2), "utf-8")
+    if not clips:
+        return None
+    return {"clips": clips, "fichier": clips[0]["fichier"], "duree": total_s,
+            "credit": " | ".join(p["credit"] for p in pistes), "titre": principale["titre"], "tags": tags}
