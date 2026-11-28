@@ -77,5 +77,6 @@
   "format_video": null,
   "resolution_video": null,
   "seuil_auto": true,
-  "seuil_auto_marge_db": 2
+  "seuil_auto_marge_db": 2,
+  "whisper_device": "auto"
 }

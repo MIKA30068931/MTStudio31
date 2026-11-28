@@ -55,6 +55,7 @@ DEFAUTS = {
     "illustrations": False,
     "langue": "fr",
     "whisper_modele": "small",
+    "whisper_device": "auto",
     "modele_claude": "claude-haiku-5-5",
     "illustration_duree_min_s": 4,
     "illustration_duree_max_s": 9,

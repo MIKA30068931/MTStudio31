@@ -32,26 +32,46 @@ voilà donc ensuite quand puis parce""".split())
 _MODELE = {}
 
 
-def transcrire(chemin, cfg):
-    """Segments [{start, end, text, words}] en secondes du fichier source (local, faster-whisper)."""
-    try:
-        from faster_whisper import WhisperModel
-    except ImportError:
-        raise RuntimeError("Installe faster-whisper :  pip install faster-whisper")
+def _transcrire_avec(chemin, cfg, device, compute):
+    from faster_whisper import WhisperModel
     nom = cfg.get("whisper_modele", "small")
-    if nom not in _MODELE:  # chargé une seule fois pour tous les clips
-        _MODELE[nom] = WhisperModel(nom, device="auto", compute_type="auto")
+    cle = (nom, device)
+    if cle not in _MODELE:  # chargé une seule fois pour tous les clips
+        _MODELE[cle] = WhisperModel(nom, device=device, compute_type=compute)
     vocab = cfg.get("vocabulaire") or []
-    segs, _ = _MODELE[nom].transcribe(
+    segs, _ = _MODELE[cle].transcribe(
         str(chemin), language=cfg.get("langue", "fr"), vad_filter=True, word_timestamps=True,
         initial_prompt=(", ".join(vocab) + ".") if vocab else None)
     out = []
-    for s in segs:
+    for s in segs:  # c'est ici que le calcul a vraiment lieu : une panne de GPU se manifeste à ce moment
         if s.text.strip():
             out.append({"start": s.start, "end": s.end, "text": s.text.strip(),
                         "words": [{"w": w.word.strip(), "start": w.start, "end": w.end}
                                   for w in (s.words or []) if w.word.strip()]})
     return out
+
+
+def transcrire(chemin, cfg):
+    """
+    Segments [{start, end, text, words}] en secondes du fichier source (local, faster-whisper).
+    Essaie la carte graphique si elle est utilisable, sinon bascule sur le processeur (plus lent, mais sûr).
+    """
+    try:
+        import faster_whisper  # noqa: F401
+    except ImportError:
+        raise RuntimeError("Installe faster-whisper :  pip install faster-whisper")
+    device = cfg.get("whisper_device", "auto")
+    if device == "cpu":
+        return _transcrire_avec(chemin, cfg, "cpu", "int8")
+    try:
+        return _transcrire_avec(chemin, cfg, device, "auto")
+    except (RuntimeError, OSError) as e:
+        msg = str(e).lower()
+        if any(k in msg for k in ("cublas", "cudnn", "cuda", "dll", "library", "gpu")):
+            print(f"  GPU inutilisable ({str(e)[:70]}...) : passage au processeur (plus lent).")
+            _MODELE.clear()
+            return _transcrire_avec(chemin, cfg, "cpu", "int8")
+        raise
 
 
 def transcript_clip(analyse, cfg):
