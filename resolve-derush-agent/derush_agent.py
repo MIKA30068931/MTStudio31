@@ -271,7 +271,10 @@ def analyser_clip(chemin, cfg, derusher=True):
             niv = niveaux(chemin)
             info["segments"] = [(0.0, duree)]
             info["mode"] = "gardé entier (aucune parole détectée)"
-            if niv:
+            if niv and niv[1] <= -80:
+                print(f"    ! {Path(chemin).name} : aucun son (niveau max {niv[1]:.0f} dB) : micro coupé ou "
+                      "piste vide ? Le clip est gardé entier.")
+            elif niv:
                 sugg = int(niv[0] - 8)
                 print(f"    ! {Path(chemin).name} : tout est sous le seuil ({cfg['seuil_silence_db']} dB). "
                       f"Volume moyen {niv[0]:.0f} dB, max {niv[1]:.0f} dB. Essaie --seuil {sugg}")
