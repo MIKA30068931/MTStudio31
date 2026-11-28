@@ -64,6 +64,20 @@ Réglages en ligne de commande : `--seuil -35` (plus bas = plus sensible), `--si
 | `segment_min_s` | Ignore les bruits très brefs (0,4 s). |
 | `sous_dossiers_sans_derush` | Catégories gardées entières (B-roll, ambiance...). |
 
+## Logos animés (`--logos`)
+Quand tu cites une marque, son logo apparaît (rebond d'entrée, léger flottement, sortie en fondu) :
+```
+py -3 derush_agent.py "D:\Montage vidéo" --export --logos
+```
+1. Au premier lancement, l'agent crée `Montage vidéo/Logos/`. **Dépose-y les logos** (PNG à fond transparent de préférence ; aussi webp, jpg, svg), pris sur la **page officielle ou le kit presse** de la marque : l'agent ne télécharge aucun logo.
+2. **Le nom du fichier = la marque** : `ElevenLabs.png`, `Notion.png`...
+3. L'agent écoute le dialogue (Whisper, mot par mot) et repère les mentions, y compris en plusieurs mots (« Eleven Labs ») et avec de petites variantes d'orthographe. Les noms des logos sont aussi donnés à Whisper pour qu'il les écrive correctement (sous-titres compris).
+4. Variantes mal transcrites ? Ajoute-les dans `Logos/logos.json` : `{"ElevenLabs": ["eleven labs", "11 labs"]}`.
+5. Le logo dure 3 s, au moment où la marque est dite (dans un passage conservé), en haut à droite ; une marque ne revient pas avant 30 s. Il est posé sur la **piste V4** (marqueur fuchsia dans Resolve Studio).
+
+Réglages (`config.json`) : `logo_duree_s`, `logo_taille` (part de la largeur, 0,16), `logo_position` (`haut-droite`, `haut-gauche`, `bas-droite`, `bas-gauche`, `centre`), `logo_repetition_min_s`.
+Limites : les logos sont animés par un effet commun (pas une animation propre à chaque marque) ; un logo blanc sur fond clair sera peu visible ; vérifie que tu as le droit d'utiliser le logo (usage éditorial pour parler de la marque en général, accord de la marque pour un usage commercial ou sponsorisé).
+
 ## Bandeaux de nom et titres de sections (`--habillage`)
 ```
 python derush_agent.py "D:/Montage vidéo" --habillage

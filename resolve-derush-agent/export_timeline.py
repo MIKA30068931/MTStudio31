@@ -96,8 +96,10 @@ def plan(analyses, categories_incluses, fps, plan_hab_items, musique):
                                          "nom": "Illustration : " + ill["requete"]})
             pos = pos_fin
     for i in plan_hab_items or []:
-        overlays.append({"fichier": i["fichier"], "rec": i["rec_frame"], "n": i["n"], "lane": 2,
-                         "nom": ("Bandeau : " if i["type"] == "bandeau" else "Titre : ") + i["texte"]})
+        lane = 3 if i["type"] == "logo" else 2  # V4 pour les logos, V3 pour bandeaux et titres
+        pref = {"bandeau": "Bandeau : ", "logo": "Logo : "}.get(i["type"], "Titre : ")
+        overlays.append({"fichier": i["fichier"], "rec": i["rec_frame"], "n": i["n"], "lane": lane,
+                         "nom": pref + i["texte"]})
     if musique:
         overlays.append({"fichier": musique["fichier"], "rec": 0, "n": int(round(musique["duree"] * fps)),
                          "lane": -1, "nom": "Musique : " + musique["titre"], "audio": True})

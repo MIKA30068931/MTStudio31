@@ -59,6 +59,12 @@ DEFAUTS = {
     "dossier_illustrations": "Illustrations",
     "marqueurs": True,
     "marqueur_coupe_longue_s": 3,
+    "logos": False,
+    "dossier_logos": "Logos",
+    "logo_duree_s": 3.0,
+    "logo_taille": 0.16,
+    "logo_position": "haut-droite",
+    "logo_repetition_min_s": 30,
     "habillage": False,
     "habillage_couleur_accent": "#F5A623",
     "habillage_couleur_fond": "#101820",
@@ -200,7 +206,7 @@ def scanner(racine, cfg):
     """{catégorie: [fichiers]}  - les fichiers à la racine vont dans « Vrac »."""
     exts = {e.lower() for e in cfg["extensions"]}
     generes = {cfg[k].lower() for k in ("dossier_illustrations", "dossier_habillage",
-                                        "dossier_sous_titres", "musique_dossier")} | {"export resolve"}
+                                        "dossier_sous_titres", "musique_dossier", "dossier_logos")} | {"export resolve"}
     cats = {}
     for dossier, sous, fichiers in os.walk(racine):
         sous[:] = sorted(d for d in sous if not d.startswith(".")
@@ -334,10 +340,10 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
             mi = hab_items.get(os.path.normcase(i["fichier"]))
             if mi is None:
                 continue
-            couleur = "Cyan" if i["type"] == "bandeau" else "Lavender"
-            lib = "Bandeau de nom" if i["type"] == "bandeau" else "Titre de section"
+            couleur = {"bandeau": "Cyan", "logo": "Fuchsia"}.get(i["type"], "Lavender")
+            lib = {"bandeau": "Bandeau de nom", "logo": "Logo"}.get(i["type"], "Titre de section")
             out.append(({"mediaPoolItem": mi, "startFrame": 0, "endFrame": i["n"] - 1,
-                         "mediaType": 1, "trackIndex": 3,
+                         "mediaType": 1, "trackIndex": 4 if i["type"] == "logo" else 3,
                          "_meta": (couleur, f"{lib} : {i['texte']}",
                                    "Graphique animé généré par l'agent (piste V3). Pour changer le texte : "
                                    "modifier habillage.json puis relancer.")}, i["rec_frame"]))
@@ -478,7 +484,7 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
                 poser(item, c["_meta"])
         else:
             print(f"    ! V1 : {len(v1)} éléments pour {len(clips)} coupes, marqueurs V1 ignorés")
-        par_debut = {(tr, it.GetStart()): it for tr in (2, 3)
+        par_debut = {(tr, it.GetStart()): it for tr in (2, 3, 4)
                      for it in (tl.GetItemListInTrack("video", tr) or [])}
         for c, off in overlays:
             item = par_debut.get((c["trackIndex"], debut + off))
@@ -547,6 +553,8 @@ def main():
     ap.add_argument("--export", action="store_true",
                     help="N'utilise pas le scripting : écrit un fichier FCPXML à importer dans Resolve "
                          "(fonctionne avec la version gratuite)")
+    ap.add_argument("--logos", action="store_true",
+                    help="Affiche le logo animé d'une marque quand elle est citée (logos dans le dossier Logos/)")
     ap.add_argument("--habillage", action="store_true",
                     help="Ajoute bandeaux de nom et titres de sections animés (piste V3)")
     ap.add_argument("--sous-titres", action="store_true",
@@ -560,6 +568,8 @@ def main():
     args = ap.parse_args(sys.argv[1:] if "resolve" not in globals() else [])
 
     cfg = charger_config(args.config)
+    if args.logos:
+        cfg["logos"] = True
     if args.habillage:
         cfg["habillage"] = True
     if args.sous_titres:
@@ -603,6 +613,14 @@ def main():
     print(f"Analyse en {time.time() - t0:.0f}s : {tot_in / 60:.1f} min -> {tot_out / 60:.1f} min "
           f"({(1 - tot_out / tot_in) * 100 if tot_in else 0:.0f}% supprimé)")
 
+    marques = {}
+    if cfg["logos"]:
+        import logos
+        print("Logos : lecture du dossier de logos...")
+        marques = logos.charger(racine, cfg)
+        # les noms de marques aident Whisper à bien les écrire (sous-titres compris)
+        cfg["vocabulaire"] = list(cfg.get("vocabulaire") or []) + list(marques)
+
     sous_titres = None
     if cfg["sous_titres"]:
         import subtitles
@@ -615,6 +633,13 @@ def main():
         import habillage
         print("Habillage : bandeaux de nom et titres de sections...")
         plan_hab = habillage.generer(analyses, [c for c in analyses if doit_derusher(c, cfg)], cfg, racine)
+
+    if marques:
+        cats_logo = [c for c in analyses if doit_derusher(c, cfg)]
+        plan_logos = logos.generer(analyses, cats_logo, cfg, racine, marques)
+        plan_hab = plan_hab or {}
+        for cle, liste in plan_logos.items():
+            plan_hab[cle] = plan_hab.get(cle, []) + liste
 
     if cfg["illustrations"]:
         import illustrations

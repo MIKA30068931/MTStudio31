@@ -61,5 +61,11 @@
   "habillage_duree_bandeau_s": 5,
   "habillage_delai_bandeau_s": 1.0,
   "habillage_duree_titre_s": 3.5,
-  "dossier_habillage": "Habillage"
+  "dossier_habillage": "Habillage",
+  "logos": false,
+  "dossier_logos": "Logos",
+  "logo_duree_s": 3.0,
+  "logo_taille": 0.16,
+  "logo_position": "haut-droite",
+  "logo_repetition_min_s": 30
 }
