@@ -62,6 +62,16 @@ DEFAUTS = {
     "dossier_illustrations": "Illustrations",
     "marqueurs": True,
     "marqueur_coupe_longue_s": 3,
+    "dossier_chutiers": "Chutiers",
+    "chutiers_internet": True,
+    "chutiers_ambiances": [],
+    "chutiers_musiques_par_ambiance": 3,
+    "chutiers_sfx_par_type": 3,
+    "chutiers_seuil_dialogue": 0.25,
+    "chutiers_copie_max_mo": 300,
+    "chutiers_sfx_types": {"Whoosh": "whoosh", "Transition": "swoosh transition", "Impact": "impact hit",
+                           "Clic et interface": "button click", "Notification": "notification chime",
+                           "Riser": "riser build up", "Applaudissements": "applause", "Ambiance": "room tone ambience"},
     "nettoyage": False,
     "retirer_hesitations": True,
     "retirer_repetitions": True,
@@ -300,7 +310,8 @@ def scanner(racine, cfg):
     """{catégorie: [fichiers]}  - les fichiers à la racine vont dans « Vrac »."""
     exts = {e.lower() for e in cfg["extensions"]}
     generes = {cfg[k].lower() for k in ("dossier_illustrations", "dossier_habillage",
-                                        "dossier_sous_titres", "musique_dossier", "dossier_logos")} | {"export resolve"}
+                                        "dossier_sous_titres", "musique_dossier", "dossier_logos",
+                                        "dossier_chutiers")} | {"sfx"} | {"export resolve"}
     cats = {}
     for dossier, sous, fichiers in os.walk(racine):
         sous[:] = sorted(d for d in sous if not d.startswith(".")
@@ -702,6 +713,12 @@ def main():
                     help="N'ouvre pas Resolve : écrit seulement le rapport des coupes")
     ap.add_argument("--illustrations", action="store_true",
                     help="Transcrit le dialogue, cherche des illustrations sur internet et les pose sur V2")
+    ap.add_argument("--chutiers", action="store_true",
+                    help="Prépare les chutiers (bins) AVANT le montage : rushs classés, musiques et SFX libres rangés")
+    ap.add_argument("--ambiances", metavar="LISTE",
+                    help='Ambiances de musique pour les chutiers, ex. "calme, dynamique, suspense"')
+    ap.add_argument("--hors-ligne", action="store_true",
+                    help="Chutiers : n'utilise aucun site internet, range seulement tes propres fichiers")
     ap.add_argument("--tout", action="store_true",
                     help="Montage complet automatique : silences, hésitations, répétitions, sous-titres, bandeaux, "
                          "logos (si dossier Logos) et musique (si dossier Musique)")
@@ -767,18 +784,29 @@ def main():
         args.export = True
         print("Mode tout automatique : silences, hésitations, répétitions, sous-titres, bandeaux, logos"
               + (", musique" if cfg["musique"] else ""))
-    choisir_format(args, cfg)
+    if not args.chutiers:  # les chutiers n'ont pas besoin du format du montage
+        choisir_format(args, cfg)
     if not racine.is_dir():
         sys.exit(f"Dossier introuvable : {racine}")
     for exe in ("ffmpeg", "ffprobe"):
         if subprocess.run([exe, "-version"], capture_output=True).returncode != 0:
             sys.exit(f"{exe} est requis (https://ffmpeg.org) et doit être dans le PATH.")
 
-    cats = scanner(racine, cfg)
+    cfg_scan = dict(cfg, extensions=list(cfg["extensions"]) + [".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg"]) \
+        if args.chutiers else cfg  # chutiers : on range aussi les rushs audio (enregistreur de terrain)
+    cats = scanner(racine, cfg_scan)
     if not cats:
         sys.exit("Aucun fichier vidéo trouvé dans ce dossier.")
     print(f"{sum(len(v) for v in cats.values())} rushs dans {len(cats)} catégorie(s) : "
           + ", ".join(cats))
+
+    if args.chutiers:  # étape préparatoire : on range, on ne monte pas
+        import chutiers
+        if args.hors_ligne:
+            cfg["chutiers_internet"] = False
+        amb = [a.strip() for a in args.ambiances.split(",") if a.strip()] if args.ambiances else None
+        chutiers.construire(racine, cats, cfg, analyser_clip, amb)
+        return
 
     t0 = time.time()
     analyses = {}

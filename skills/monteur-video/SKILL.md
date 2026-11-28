@@ -40,6 +40,13 @@ py -3 derush_agent.py "C:\montage video" --export [options]
 
 Dossier attendu : un sous-dossier par catégorie de rushs (`interview/`, `b-roll/`...). Les catégories `B-roll`, `Ambiance`, `Drone`, `Plans de coupe` sont gardées entières.
 
+## Chutiers avant le montage
+
+`py -3 derush_agent.py "<dossier>" --chutiers [--ambiances "calme, dynamique"] [--hors-ligne]` crée `Chutiers/` : 01_RUSHS (Dialogue,
+B-roll, Son seul, par liens sans déplacer les originaux), 02_MUSIQUE par ambiance, 03_SFX par type, 04_LOGOS, 05_HABILLAGE,
+06_SOUS-TITRES, plus INDEX_RUSHS.csv et CREDITS_CHUTIERS.json. À importer dans Resolve comme bins (clic droit sur le dossier,
+« créer des bins »). Seuls des mots-clés vont sur internet. Rappeler de vérifier les licences (CC BY : citer l'auteur).
+
 ## Tout automatique
 
 `monter.bat` (double-clic) ou `py -3 derush_agent.py "<dossier>" --tout` : silences, hésitations (« euh »), prises répétées

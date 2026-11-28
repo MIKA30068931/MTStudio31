@@ -93,5 +93,22 @@
     "hem"
   ],
   "repetition_similarite": 0.85,
-  "repetition_fenetre_s": 30
+  "repetition_fenetre_s": 30,
+  "dossier_chutiers": "Chutiers",
+  "chutiers_internet": true,
+  "chutiers_ambiances": [],
+  "chutiers_musiques_par_ambiance": 3,
+  "chutiers_sfx_par_type": 3,
+  "chutiers_seuil_dialogue": 0.25,
+  "chutiers_copie_max_mo": 300,
+  "chutiers_sfx_types": {
+    "Whoosh": "whoosh",
+    "Transition": "swoosh transition",
+    "Impact": "impact hit",
+    "Clic et interface": "button click",
+    "Notification": "notification chime",
+    "Riser": "riser build up",
+    "Applaudissements": "applause",
+    "Ambiance": "room tone ambience"
+  }
 }

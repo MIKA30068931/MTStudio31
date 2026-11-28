@@ -14,6 +14,36 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
+## Chutiers : une bonne base avant de monter (`--chutiers`)
+```
+py -3 derush_agent.py "C:\montage video" --chutiers
+py -3 derush_agent.py "C:\montage video" --chutiers --ambiances "calme, dynamique, suspense"
+py -3 derush_agent.py "C:\montage video" --chutiers --hors-ligne      (aucun site internet)
+```
+L'agent crée `Montage vidéo/Chutiers/` :
+```
+01_RUSHS/     Dialogue/  B-roll/  Son seul/      tes rushs classés (liens : rien n'est déplacé ni dupliqué)
+02_MUSIQUE/   Calme/ Dynamique/ ... Mes pistes/   musiques libres par ambiance + les tiennes
+03_SFX/       Whoosh/ Transition/ Impact/ Clic et interface/ Notification/ Riser/ Applaudissements/ Ambiance/ Mes SFX/
+04_LOGOS/  05_HABILLAGE/  06_SOUS-TITRES/        tes logos et l'habillage générés
+INDEX_RUSHS.csv   CREDITS_CHUTIERS.json   LISEZ-MOI.txt
+```
+- **Rushs** : classés par l'agent selon la part de parole (≥ 25 % = Dialogue ; sans parole = B-roll ; sans image = Son seul).
+  Ce sont des **liens physiques** : le fichier apparaît dans le chutier sans être copié ni déplacé, sans espace disque en plus
+  et sans droit administrateur. Si le rush est sur un **autre disque**, un petit fichier (≤ 300 Mo) est copié, sinon il est
+  seulement listé dans l'index. **Ne supprime pas tes rushs d'origine.**
+- **Musique** : par ambiance (Jamendo si `JAMENDO_CLIENT_ID`, puis Openverse), 3 pistes par ambiance. **SFX** : Openverse
+  (catégorie « sound_effect », licences commerciales, sons de 12 s maximum), 3 par type. Seuls des **mots-clés** sont envoyés
+  sur internet, jamais ton dialogue. Tes propres musiques (`Musique/`), SFX (dossier `SFX/`), logos sont reliés dans le chutier.
+- **Crédits et licences** : `CREDITS_CHUTIERS.json`. Beaucoup de licences (CC BY) exigent de citer l'auteur : vérifie avant de publier.
+  Epidemic Sound n'a pas d'API : mets tes téléchargements dans `Musique/` et `SFX/`.
+- **Dans Resolve** : page **Média**, clic droit sur le dossier `Chutiers` dans l'explorateur de médias, puis « Ajouter le dossier
+  et les sous-dossiers dans la bibliothèque de médias (créer des bins) » (libellé exact à vérifier dans ta version). Sinon, glisse
+  le dossier `Chutiers` depuis l'Explorateur Windows dans la bibliothèque de médias.
+- Réglages (`config.json`) : `chutiers_ambiances`, `chutiers_musiques_par_ambiance`, `chutiers_sfx_par_type`,
+  `chutiers_sfx_types` (dossier -> requête), `chutiers_seuil_dialogue` (0,25), `chutiers_internet`.
+- Non testé dans ton Resolve ; la recherche en ligne a été testée avec des réponses simulées (pas d'accès internet ici).
+
 ## Montage complet en un appel (`monter.bat` ou `--tout`)
 **Double-clique sur `monter.bat`** (ou glisse ton dossier « Montage vidéo » dessus) : l'agent fait tout seul le montage complet.
 Équivalent en ligne de commande : `py -3 derush_agent.py "C:\montage video" --tout`.

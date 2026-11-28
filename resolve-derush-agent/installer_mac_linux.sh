@@ -20,7 +20,7 @@ python3 -m pip install --user --upgrade faster-whisper "av>=15,<17" anthropic \
   || python3 -m pip install --user --break-system-packages --upgrade faster-whisper "av>=15,<17" anthropic
 
 mkdir -p "$DEST"
-cp "$ICI"/derush_agent.py "$ICI"/illustrations.py "$ICI"/music.py "$ICI"/subtitles.py "$ICI"/habillage.py "$ICI"/export_timeline.py "$ICI"/logos.py "$ICI"/nettoyage.py "$ICI"/config.json "$DEST"/
+cp "$ICI"/derush_agent.py "$ICI"/illustrations.py "$ICI"/music.py "$ICI"/subtitles.py "$ICI"/habillage.py "$ICI"/export_timeline.py "$ICI"/logos.py "$ICI"/nettoyage.py "$ICI"/chutiers.py "$ICI"/config.json "$DEST"/
 echo "Scripts copiés dans : $DEST"
 python3 "$ICI/verifier_installation.py"
 echo "Reste à faire à la main : Resolve > Préférences > Système > Général > Scripts externes = Local."
