@@ -63,6 +63,7 @@ Dossier attendu : un sous-dossier par catégorie de rushs (`interview/`, `b-roll
 
 - `0 segment(s)` : vidéo muette ou son trop faible. Mesurer avec `ffmpeg -i "fichier.mp4" -vn -af volumedetect -f null NUL` ; un `max_volume` de -91 dB signifie un fichier muet (fréquent avec OBS sans micro).
 - `py` non reconnu : fermer et rouvrir l'invite de commandes.
+- `TypeError: open() got an unexpected keyword argument 'metadata_errors'` pendant la transcription : la bibliothèque `av` (19.x) est trop récente pour faster-whisper. Corriger avec `py -3 -m pip install "av==16.1.0"`.
 - Premier lancement de Whisper lent : téléchargement du modèle (environ 500 Mo).
 - Windows « Contrôle intelligent des applications » : ne pas double-cliquer les `.py` ; lancer depuis l'invite de commandes.
 

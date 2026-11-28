@@ -16,8 +16,8 @@ else
 fi
 
 echo "[Whisper et bibliothèques]"
-python3 -m pip install --user --upgrade faster-whisper anthropic \
-  || python3 -m pip install --user --break-system-packages --upgrade faster-whisper anthropic
+python3 -m pip install --user --upgrade faster-whisper "av>=15,<17" anthropic \
+  || python3 -m pip install --user --break-system-packages --upgrade faster-whisper "av>=15,<17" anthropic
 
 mkdir -p "$DEST"
 cp "$ICI"/derush_agent.py "$ICI"/illustrations.py "$ICI"/music.py "$ICI"/subtitles.py "$ICI"/habillage.py "$ICI"/export_timeline.py "$ICI"/logos.py "$ICI"/config.json "$DEST"/

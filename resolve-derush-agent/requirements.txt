@@ -1,2 +1,3 @@
 faster-whisper   # transcription locale du dialogue (--illustrations)
+av>=15,<17       # lecture audio : la version 19 est incompatible avec faster-whisper
 anthropic        # optionnel : requêtes d'images pertinentes via Claude

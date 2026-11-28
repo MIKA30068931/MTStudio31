@@ -17,7 +17,7 @@ where ffmpeg >nul 2>nul || winget install -e --id Gyan.FFmpeg --accept-package-a
 
 echo [3/4] Whisper (transcription locale) et bibliotheques...
 py -3 -m pip install --upgrade pip
-py -3 -m pip install faster-whisper anthropic
+py -3 -m pip install faster-whisper "av>=15,<17" anthropic
 if errorlevel 1 (
   echo.
   echo Python vient peut-etre d'etre installe : FERME cette fenetre, rouvre-la et relance ce fichier.

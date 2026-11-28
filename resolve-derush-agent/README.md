@@ -223,6 +223,10 @@ python derush_agent.py "D:/Montage vidéo" --illustrations
 - Cette partie est testée avec une transcription et une recherche simulées (pas d'accès internet ici) :
   la recherche réelle et Whisper restent à valider sur ta machine.
 
+## Dépannage : erreur `open() got an unexpected keyword argument 'metadata_errors'`
+La transcription (sous-titres, logos, illustrations) plante avec cette erreur : la bibliothèque `av` installée est trop
+récente (19.x) pour `faster-whisper`. Correction : `py -3 -m pip install "av==16.1.0"`, puis relancer la commande.
+
 ## Limites
 - La détection se base sur le **volume** (pas sur le sens) : un bruit fort sera gardé comme de la parole.
 - Le script n'a pas pu être testé dans Resolve 21 lui-même ici ; l'analyse des silences, elle, est testée.
