@@ -42,7 +42,7 @@ ACTIONS = {
     "analyse": ("Analyse seule", ["--analyse-seule"]),
 }
 RE_TEXTE = re.compile(r"^[\w ,'’-]{1,80}$", re.UNICODE)
-ORIGINES_OK = re.compile(r"^https://[A-Za-z0-9-]+\.base44\.app$|^http://(localhost|127\.0\.0\.1)(:\d+)?$")
+ORIGINES_OK = re.compile(r"^https://([A-Za-z0-9-]+\.)+base44\.(app|com)$|^http://(localhost|127\.0\.0\.1)(:\d+)?$")
 
 JOBS = {}          # id -> dict
 ORDRE = []         # ids, du plus ancien au plus récent
