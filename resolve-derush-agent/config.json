@@ -78,5 +78,20 @@
   "resolution_video": null,
   "seuil_auto": true,
   "seuil_auto_marge_db": 2,
-  "whisper_device": "auto"
+  "whisper_device": "auto",
+  "nettoyage": false,
+  "retirer_hesitations": true,
+  "retirer_repetitions": true,
+  "hesitations": [
+    "euh",
+    "heu",
+    "hum",
+    "hmm",
+    "hm",
+    "mmh",
+    "mh",
+    "hem"
+  ],
+  "repetition_similarite": 0.85,
+  "repetition_fenetre_s": 30
 }

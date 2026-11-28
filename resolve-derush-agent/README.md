@@ -14,6 +14,30 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
+## Montage complet en un appel (`monter.bat` ou `--tout`)
+**Double-clique sur `monter.bat`** (ou glisse ton dossier « Montage vidéo » dessus) : l'agent fait tout seul le montage complet.
+Équivalent en ligne de commande : `py -3 derush_agent.py "C:\montage video" --tout`.
+
+Ce que fait `--tout` :
+1. **Silences** retirés (seuil automatique).
+2. **Hésitations** (« euh », « hum »…) retirées, d'après la transcription Whisper mot par mot.
+3. **Prises répétées** : si une phrase est redite presque à l'identique dans les 30 s, on garde la dernière version.
+   Chaque phrase retirée est affichée avec son instant, pour vérification.
+4. **Sous-titres** français (.srt), **bandeaux de nom et titres** (d'après `habillage.json`), **logos** des marques citées
+   (si le dossier `Logos` contient des logos) et **musique** avec J-cut et L-cut (si le dossier `Musique` contient des pistes).
+5. Il te demande le **format** (16:9 / 9:16) et la **qualité** (1080p / 4K), puis ouvre le dossier du fichier créé.
+
+Il te reste à **importer dans Resolve** (la version gratuite 21.1 ne permet pas de le faire par script) :
+Fichier > Importer > Timeline (le `.fcpxml`), puis Fichier > Importer > Sous-titres (`global.srt`).
+
+Réglages (`config.json`) : `hesitations` (mots retirés), `retirer_hesitations`, `retirer_repetitions`,
+`repetition_similarite` (0,85 ; plus bas = retire plus de répétitions), `repetition_fenetre_s` (30).
+Séparément : `--nettoyer` (hésitations et répétitions seules).
+
+Limites : un clip prend plusieurs minutes (transcription sur processeur) ; Whisper omet parfois les « euh » (l'agent l'incite
+à les transcrire, sans garantie) ; l'agent ne juge pas l'utilité du contenu (il ne retire que silences, hésitations et prises
+répétées) ; ce nettoyage n'a pas encore été éprouvé sur de vraies voix : **écoute le résultat** et ajuste.
+
 ## Format et qualité : l'agent te pose la question
 Au lancement, l'agent demande :
 ```

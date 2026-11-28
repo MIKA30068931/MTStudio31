@@ -40,6 +40,12 @@ py -3 derush_agent.py "C:\montage video" --export [options]
 
 Dossier attendu : un sous-dossier par catégorie de rushs (`interview/`, `b-roll/`...). Les catégories `B-roll`, `Ambiance`, `Drone`, `Plans de coupe` sont gardées entières.
 
+## Tout automatique
+
+`monter.bat` (double-clic) ou `py -3 derush_agent.py "<dossier>" --tout` : silences, hésitations (« euh »), prises répétées
+(on garde la dernière), sous-titres, bandeaux (si `habillage.json` rempli), logos (si dossier `Logos`), musique J-cut / L-cut
+(si dossier `Musique`). Le format et la qualité sont demandés. L'import dans Resolve gratuit reste manuel.
+
 ## Règles de montage
 
 - **Silences** : ne jamais couper une phrase ; garder une marge avant (0,15 s) et après (0,25 s). Un clip jugé entièrement silencieux est gardé entier, jamais supprimé.

@@ -62,6 +62,12 @@ DEFAUTS = {
     "dossier_illustrations": "Illustrations",
     "marqueurs": True,
     "marqueur_coupe_longue_s": 3,
+    "nettoyage": False,
+    "retirer_hesitations": True,
+    "retirer_repetitions": True,
+    "hesitations": ["euh", "heu", "hum", "hmm", "hm", "mmh", "mh", "hem"],
+    "repetition_similarite": 0.85,
+    "repetition_fenetre_s": 30,
     "demander_format": True,
     "format_video": None,
     "resolution_video": None,
@@ -696,6 +702,11 @@ def main():
                     help="N'ouvre pas Resolve : écrit seulement le rapport des coupes")
     ap.add_argument("--illustrations", action="store_true",
                     help="Transcrit le dialogue, cherche des illustrations sur internet et les pose sur V2")
+    ap.add_argument("--tout", action="store_true",
+                    help="Montage complet automatique : silences, hésitations, répétitions, sous-titres, bandeaux, "
+                         "logos (si dossier Logos) et musique (si dossier Musique)")
+    ap.add_argument("--nettoyer", action="store_true",
+                    help="Retire aussi les hésitations (euh) et les prises répétées (transcription Whisper)")
     ap.add_argument("--export", action="store_true",
                     help="N'utilise pas le scripting : écrit un fichier FCPXML à importer dans Resolve "
                          "(fonctionne avec la version gratuite)")
@@ -719,6 +730,8 @@ def main():
     args = ap.parse_args(sys.argv[1:] if "resolve" not in globals() else [])
 
     cfg = charger_config(args.config)
+    if args.nettoyer:
+        cfg["nettoyage"] = True
     if args.logos:
         cfg["logos"] = True
     if args.habillage:
@@ -744,6 +757,16 @@ def main():
         cfg["duree_silence_min_s"] = args.silence_min
 
     racine = Path(args.dossier or choisir_dossier()).expanduser().resolve()
+    if args.tout:
+        cfg.update(nettoyage=True, sous_titres=True, habillage=True, logos=True)
+        musiques = [f for f in (racine / cfg["musique_dossier"]).rglob("*")
+                    if f.suffix.lower() in (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
+                    and "_rendus" not in f.parts] if (racine / cfg["musique_dossier"]).is_dir() else []
+        if musiques and not cfg["musique"]:
+            cfg["musique"] = "auto"
+        args.export = True
+        print("Mode tout automatique : silences, hésitations, répétitions, sous-titres, bandeaux, logos"
+              + (", musique" if cfg["musique"] else ""))
     choisir_format(args, cfg)
     if not racine.is_dir():
         sys.exit(f"Dossier introuvable : {racine}")
@@ -772,6 +795,11 @@ def main():
     tot_out = sum(a["gardé_s"] for l in analyses.values() for a in l)
     print(f"Analyse en {time.time() - t0:.0f}s : {tot_in / 60:.1f} min -> {tot_out / 60:.1f} min "
           f"({(1 - tot_out / tot_in) * 100 if tot_in else 0:.0f}% supprimé)")
+
+    if cfg["nettoyage"]:
+        import nettoyage
+        print("Nettoyage : hésitations et prises répétées (transcription locale)...")
+        nettoyage.appliquer(analyses, [c for c in analyses if doit_derusher(c, cfg)], cfg)
 
     marques = {}
     if cfg["logos"]:
@@ -834,6 +862,11 @@ def main():
     fichier = export_timeline.exporter(analyses, cats, cfg, racine,
                                        racine / "Export Resolve" / f"{racine.name}.fcpxml", musique, plan_hab)
     print(f"\nFichier créé : {fichier}")
+    if args.tout and sys.platform.startswith("win"):
+        try:
+            os.startfile(str(fichier.parent))  # ouvre le dossier Export Resolve
+        except OSError:
+            pass
     print("Dans DaVinci Resolve :")
     print("  1. Fichier > Importer > Timeline... puis choisis ce fichier .fcpxml")
     print("  2. Si Resolve demande de lier les médias, coche « Chercher les médias dans... » et choisis "

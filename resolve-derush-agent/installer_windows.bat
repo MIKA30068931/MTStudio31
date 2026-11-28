@@ -34,6 +34,7 @@ copy /Y "%~dp0subtitles.py" "%DEST%" >nul
 copy /Y "%~dp0habillage.py" "%DEST%" >nul
 copy /Y "%~dp0export_timeline.py" "%DEST%" >nul
 copy /Y "%~dp0logos.py" "%DEST%" >nul
+copy /Y "%~dp0nettoyage.py" "%DEST%" >nul
 copy /Y "%~dp0config.json" "%DEST%" >nul
 echo Scripts copies dans : %DEST%
 

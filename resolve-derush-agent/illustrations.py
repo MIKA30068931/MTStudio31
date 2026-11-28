@@ -39,9 +39,13 @@ def _transcrire_avec(chemin, cfg, device, compute):
     if cle not in _MODELE:  # chargé une seule fois pour tous les clips
         _MODELE[cle] = WhisperModel(nom, device=device, compute_type=compute)
     vocab = cfg.get("vocabulaire") or []
+    prompt = (", ".join(vocab) + ".") if vocab else ""
+    if cfg.get("nettoyage") and cfg.get("retirer_hesitations", True):
+        prompt += " Euh, hum, euh... bah, hum."  # incite Whisper à transcrire les hésitations (sinon il les omet)
+    prompt = prompt.strip() or None
     segs, _ = _MODELE[cle].transcribe(
         str(chemin), language=cfg.get("langue", "fr"), vad_filter=True, word_timestamps=True,
-        initial_prompt=(", ".join(vocab) + ".") if vocab else None)
+        initial_prompt=prompt)
     out = []
     for s in segs:  # c'est ici que le calcul a vraiment lieu : une panne de GPU se manifeste à ce moment
         if s.text.strip():
