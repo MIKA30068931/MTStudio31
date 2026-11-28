@@ -691,18 +691,34 @@ def charger_config(chemin_cfg):
 
 
 def choisir_dossier():
+    """Fenêtre de choix du dossier ; se souvient du dernier dossier utilisé."""
+    memo = Path.home() / ".derush_agent_dernier_dossier.txt"
+    dernier = ""
+    try:
+        dernier = memo.read_text(encoding="utf-8").strip()
+    except OSError:
+        pass
+    choix = ""
     try:
         import tkinter as tk
         from tkinter import filedialog
         r = tk.Tk()
         r.withdraw()
-        d = filedialog.askdirectory(title="Choisir le dossier « Montage vidéo »")
+        r.attributes("-topmost", True)
+        choix = filedialog.askdirectory(title="Choisir le dossier « Montage vidéo »",
+                                        initialdir=dernier if dernier and Path(dernier).is_dir() else None)
         r.destroy()
-        if d:
-            return d
     except Exception:
         pass
-    return input("Chemin du dossier « Montage vidéo » : ").strip().strip('"')
+    if not choix:
+        choix = input(f"Chemin du dossier « Montage vidéo »{f' [{dernier}]' if dernier else ''} : ").strip().strip('"') \
+            or dernier
+    if choix:
+        try:
+            memo.write_text(choix, encoding="utf-8")
+        except OSError:
+            pass
+    return choix
 
 
 def main():

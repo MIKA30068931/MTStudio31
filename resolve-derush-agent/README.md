@@ -14,6 +14,19 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
+## Lancer l'agent depuis DaVinci Resolve (scripts Lua)
+Dans Resolve gratuit 21.1, les scripts Python n'apparaissent plus dans le menu Scripts, mais les scripts **Lua** fonctionnent
+(AutoSubs en est un). Le dossier `lua/` contient trois petits lanceurs :
+- `Agent monteur - Montage complet.lua` (`--tout`) ; `Agent monteur - Chutiers.lua` (`--chutiers`) ; `Agent monteur - Silences.lua` (`--export`).
+
+1. Copie-les dans `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility` (à côté d'AutoSubs).
+2. Redémarre Resolve. Ils apparaissent dans **Espace de travail > Scripts**.
+3. Un clic ouvre une fenêtre noire qui lance l'agent ; une fenêtre te demande le dossier de montage (il retient le dernier).
+Si ton agent n'est pas dans `C:\agent`, modifie la ligne `local agent = ...` du script.
+Limite : le lanceur ouvre l'agent, mais l'import de la timeline reste manuel (Fichier > Importer > Timeline).
+Si le menu ne lance rien (Resolve peut bloquer `os.execute`), crée un raccourci Windows vers
+`py -3 "C:\agent\derush_agent.py" --tout`.
+
 ## Chutiers : une bonne base avant de monter (`--chutiers`)
 ```
 py -3 derush_agent.py "C:\montage video" --chutiers
