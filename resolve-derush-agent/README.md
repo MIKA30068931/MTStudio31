@@ -71,10 +71,22 @@ des marqueurs ne passent pas par ce format (seules les « grosses coupes » sont
 
 Réglages en ligne de commande : `--seuil -35` (plus bas = plus sensible), `--silence-min 0.8`.
 
+## Seuil de silence automatique (par défaut)
+L'agent règle **lui-même** le seuil de silence, clip par clip : il mesure le niveau de crête toutes les 50 ms, cherche la
+frontière naturelle entre le bruit de fond et la voix (méthode d'Otsu), puis ajoute 2 dB de marge. Il s'adapte ainsi à une
+voix forte, à une voix faible ou à un bruit de fond, sans que tu aies à régler quoi que ce soit. L'idée de mesurer le volume
+pour régler le seuil vient des instructions de Remotion ; la méthode de séparation est la mienne.
+- Le seuil choisi est affiché pour chaque clip (« seuil auto -46 dB »).
+- Un clip muet (aucun signal) est gardé entier, avec un message.
+- Pour imposer un seuil : `--seuil -45` (respecté tel quel). Pour revenir à l'automatique : `--seuil auto`.
+- Réglages : `seuil_auto` (true/false), `seuil_auto_marge_db` (2 ; plus haut = coupe plus de pauses).
+- Testé sur 4 cas synthétiques (voix forte, voix très faible, bruit de fond, voix faible avec bruit) : chacun retire bien
+  les 4,2 s de silence prévues. Pas encore éprouvé sur de vraies voix : vérifie les marqueurs jaunes au premier essai.
+
 ## Réglages (`config.json`)
 | Clé | Rôle |
 |---|---|
-| `seuil_silence_db` | Niveau sous lequel c'est du silence (-32 dB). Baisse-le (-40) si du bruit de fond reste. |
+| `seuil_silence_db` | Seuil fixe (-32 dB), utilisé seulement si `seuil_auto` est désactivé ou si la mesure est impossible. |
 | `duree_silence_min_s` | Silence minimum supprimé (0,6 s). Les petites pauses naturelles sont conservées. |
 | `marge_avant_s` / `marge_apres_s` | Respiration gardée avant/après la parole (0,15 / 0,25 s). |
 | `segment_min_s` | Ignore les bruits très brefs (0,4 s). |

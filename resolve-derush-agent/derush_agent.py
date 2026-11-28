@@ -40,6 +40,8 @@ except NameError:
 
 DEFAUTS = {
     "seuil_silence_db": -32,
+    "seuil_auto": True,
+    "seuil_auto_marge_db": 2,
     "duree_silence_min_s": 0.6,
     "marge_avant_s": 0.15,
     "marge_apres_s": 0.25,
@@ -129,6 +131,73 @@ def ffprobe(chemin):
     return duree, fps, a_audio, a_video
 
 
+def niveaux_50ms(chemin):
+    """
+    Niveau de CRÊTE (dB) de chaque fenêtre de 50 ms, avec le même filtrage que la détection de silences.
+    La crête et non la moyenne : silencedetect compare chaque échantillon au seuil, donc le bruit de fond n'est
+    « silencieux » que si même ses pics restent sous le seuil.
+    """
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(chemin), "-vn", "-af",
+                          "highpass=f=80,lowpass=f=8000,aresample=16000,astats=metadata=1:reset=1:length=0.05,"
+                          "ametadata=print:key=lavfi.astats.Overall.Peak_level:file=-",
+                          "-f", "null", "-"], capture_output=True, text=True)
+    niv = []
+    for m in re.finditer(r"lavfi\.astats\.Overall\.Peak_level=(\S+)", out.stdout + out.stderr):
+        try:
+            v = float(m.group(1))
+        except ValueError:
+            continue
+        niv.append(-90.0 if v != v or v < -90 else min(v, 0.0))  # silence numérique (-inf) = -90 dB
+    return niv
+
+
+def _otsu(niv):
+    """Seuil (dB) qui sépare au mieux deux populations de niveaux : bruit de fond / parole."""
+    cases = [0] * 91  # une case par dB, de -90 à 0
+    for v in niv:
+        cases[int(round(v)) + 90] += 1
+    total, somme = len(niv), sum(i * c for i, c in enumerate(cases))
+    w0 = s0 = 0
+    meilleur, seuil = -1.0, None
+    for t in range(91):
+        w0 += cases[t]
+        s0 += t * cases[t]
+        if w0 == 0 or w0 == total:
+            continue
+        m0, m1 = s0 / w0, (somme - s0) / (total - w0)
+        var = w0 * (total - w0) * (m0 - m1) ** 2
+        if var > meilleur:
+            meilleur, seuil, ecart = var, t - 90, m1 - m0
+    return (seuil, ecart) if seuil is not None else (None, 0.0)
+
+
+def seuil_auto(chemin, cfg):
+    """
+    Seuil de silence adapté à CE clip, quel que soit son volume ou son bruit de fond.
+    On mesure le niveau toutes les 50 ms, puis on cherche la frontière entre deux populations (bruit de fond et
+    parole). Si le clip est uniforme (pas deux populations nettes), repli sur le niveau de gating de loudnorm.
+    Retourne le seuil en dB, ou None si impossible (clip sans signal).
+    """
+    niv = niveaux_50ms(chemin)
+    if len(niv) < 20 or max(niv) <= -80:
+        return None  # trop court ou sans signal : l'appelant gère (clip gardé entier)
+    marge = cfg.get("seuil_auto_marge_db", 0)
+    seuil, ecart = _otsu(niv)
+    if seuil is not None and ecart >= 12:  # deux populations nettes (au moins 12 dB d'écart)
+        return max(-75.0, min(-25.0, seuil + marge))
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(chemin), "-vn",
+                          "-af", "loudnorm=print_format=json", "-f", "null", "-"],
+                         capture_output=True, text=True)
+    blocs = re.findall(r"\{[^{}]*\"input_thresh\"[^{}]*\}", out.stderr, re.S)
+    try:
+        t = float(json.loads(blocs[-1])["input_thresh"])
+    except (IndexError, ValueError, KeyError):
+        return None
+    if t != t or t in (float("inf"), float("-inf")):
+        return None
+    return max(-75.0, min(-25.0, t + marge))
+
+
 def detecter_silences(chemin, duree, cfg):
     """Liste de (début, fin) des silences, via le filtre silencedetect."""
     filtre = (f"highpass=f=80,lowpass=f=8000,"
@@ -189,8 +258,14 @@ def analyser_clip(chemin, cfg, derusher=True):
         info["segments"] = [(0.0, duree)]
         info["mode"] = "gardé entier" + ("" if a_audio else " (pas d'audio)")
     else:
-        sil = detecter_silences(chemin, duree, cfg)
-        info["segments"] = segments_parole(duree, sil, cfg)
+        cfg_clip = cfg
+        if cfg.get("seuil_auto", True):
+            s_auto = seuil_auto(chemin, cfg)
+            if s_auto is not None:
+                cfg_clip = dict(cfg, seuil_silence_db=round(s_auto, 1))
+                info["seuil_db"] = cfg_clip["seuil_silence_db"]
+        sil = detecter_silences(chemin, duree, cfg_clip)
+        info["segments"] = segments_parole(duree, sil, cfg_clip)
         info["mode"] = "dérushé"
         if not info["segments"]:  # tout est « silence » : on ne supprime jamais un clip en entier
             niv = niveaux(chemin)
@@ -634,7 +709,8 @@ def main():
                     help="Ne pose aucune question : utilise les options, config.json ou 16:9 / 1080p")
     ap.add_argument("--musique-choisir", action="store_true", help="Propose la liste de pistes à choisir")
     ap.add_argument("--musique-dossier", help="Dossier de tes pistes (ex. téléchargées sur Epidemic Sound)")
-    ap.add_argument("--seuil", type=float, help="Seuil de silence en dB (ex: -35)")
+    ap.add_argument("--seuil", help="Seuil de silence : un nombre en dB (ex: -45) ou « auto » (par défaut : "
+                                    "l'agent le règle clip par clip d'après le volume)")
     ap.add_argument("--silence-min", type=float, help="Durée mini d'un silence supprimé (s)")
     args = ap.parse_args(sys.argv[1:] if "resolve" not in globals() else [])
 
@@ -652,7 +728,14 @@ def main():
     if args.illustrations:
         cfg["illustrations"] = True
     if args.seuil is not None:
-        cfg["seuil_silence_db"] = args.seuil
+        if args.seuil.lower() == "auto":
+            cfg["seuil_auto"] = True
+        else:
+            try:
+                cfg["seuil_silence_db"] = float(args.seuil.replace(",", "."))
+                cfg["seuil_auto"] = False  # un seuil donné à la main est respecté tel quel
+            except ValueError:
+                sys.exit("--seuil attend un nombre en dB (ex. -45) ou « auto ».")
     if args.silence_min is not None:
         cfg["duree_silence_min_s"] = args.silence_min
 
@@ -678,8 +761,9 @@ def main():
         for f in fichiers:
             a = analyser_clip(f, cfg, derusher=derush)
             analyses[cat].append(a)
+            seuil_txt = f", seuil auto {a['seuil_db']:g} dB" if "seuil_db" in a else ""
             print(f"  [{cat}] {f.name}: {a['mode']}, {len(a['segments'])} segment(s), "
-                  f"-{a['supprimé_s']:.1f}s")
+                  f"-{a['supprimé_s']:.1f}s{seuil_txt}")
     tot_in = sum(a["duree_s"] for l in analyses.values() for a in l)
     tot_out = sum(a["gardé_s"] for l in analyses.values() for a in l)
     print(f"Analyse en {time.time() - t0:.0f}s : {tot_in / 60:.1f} min -> {tot_out / 60:.1f} min "

@@ -75,5 +75,7 @@
   "musique_section_min_s": 3,
   "demander_format": true,
   "format_video": null,
-  "resolution_video": null
+  "resolution_video": null,
+  "seuil_auto": true,
+  "seuil_auto_marge_db": 2
 }
