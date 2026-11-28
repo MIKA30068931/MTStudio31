@@ -14,6 +14,20 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
+## Interface web (Base44) pour piloter l'agent par onglets
+Une application Base44 propose un onglet par action (montage complet, chutiers, silences, sous-titres, bandeaux, logos, musique,
+illustrations, analyse) avec le suivi en direct de ce que fait l'agent et un historique. Elle ne peut pas lancer l'agent toute seule
+(l'agent tourne sur ton PC) : elle passe par un **pont local**, `pont_agent.py`.
+1. Sur ton PC, dans `C:\agent` : `py -3 pont_agent.py`. La fenêtre affiche une adresse (`http://127.0.0.1:8765`) et un **code secret**.
+   Laisse-la ouverte (ou utilise le lanceur Lua `Agent monteur - Pont (interface web).lua`).
+2. Ouvre l'application Base44 dans ton navigateur (sur le même PC), onglet **Connexion** : colle le code secret, « Tester la connexion ».
+3. Choisis le dossier, le format et la qualité, puis clique sur l'onglet de l'action et sur « Lancer ».
+
+Sécurité du pont : il n'écoute que sur ton ordinateur (127.0.0.1), refuse toute demande sans le code secret, n'accepte que les pages
+`*.base44.app` (ou une adresse ajoutée avec `--origine`), n'exécute que les actions de la liste (jamais de commande libre) et valide chaque
+option (dossier existant, format, seuil entre -80 et -10 dB, texte sans caractère spécial). Ne partage jamais ton code secret. Le code est
+dans `%USERPROFILE%\.pont_agent.json`. Navigateurs : Chrome, Edge et Firefox acceptent d'appeler `127.0.0.1` depuis une page https ; Safari non.
+
 ## Lancer l'agent depuis DaVinci Resolve (scripts Lua)
 Dans Resolve gratuit 21.1, les scripts Python n'apparaissent plus dans le menu Scripts, mais les scripts **Lua** fonctionnent
 (AutoSubs en est un). Le dossier `lua/` contient trois petits lanceurs :

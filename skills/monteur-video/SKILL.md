@@ -47,6 +47,11 @@ B-roll, Son seul, par liens sans déplacer les originaux), 02_MUSIQUE par ambian
 06_SOUS-TITRES, plus INDEX_RUSHS.csv et CREDITS_CHUTIERS.json. À importer dans Resolve comme bins (clic droit sur le dossier,
 « créer des bins »). Seuls des mots-clés vont sur internet. Rappeler de vérifier les licences (CC BY : citer l'auteur).
 
+## Interface web
+
+`py -3 pont_agent.py` lance un pont local (127.0.0.1:8765, code secret, actions listées, pages *.base44.app) que l'application Base44
+« Agent monteur - Pilotage » appelle : un onglet par action, suivi en direct, historique. Ne jamais afficher ni envoyer le code secret.
+
 ## Tout automatique
 
 `monter.bat` (double-clic) ou `py -3 derush_agent.py "<dossier>" --tout` : silences, hésitations (« euh »), prises répétées
