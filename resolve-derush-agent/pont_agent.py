@@ -127,7 +127,8 @@ def construire_arguments(demande):
         # options d'ajout, valables sur les actions de montage (pas sur l'analyse)
         if action in ("silences",):
             for cle, flag in (("nettoyer", "--nettoyer"), ("sous_titres", "--sous-titres"),
-                              ("habillage", "--habillage"), ("logos", "--logos"), ("illustrations", "--illustrations")):
+                              ("habillage", "--habillage"), ("logos", "--logos"), ("illustrations", "--illustrations"),
+                              ("broll", "--broll")):
                 if opt.get(cle):
                     args.append(flag)
     return action, args
