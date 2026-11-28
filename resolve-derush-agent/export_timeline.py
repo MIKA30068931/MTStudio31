@@ -96,10 +96,16 @@ def plan(analyses, categories_incluses, fps, plan_hab_items, musique):
                                          "nom": "Illustration : " + ill["requete"], "conform": True})
             pos = pos_fin
     for i in plan_hab_items or []:
-        lane = 3 if i["type"] == "logo" else 2  # V4 pour les logos, V3 pour bandeaux et titres
-        pref = {"bandeau": "Bandeau : ", "logo": "Logo : "}.get(i["type"], "Titre : ")
+        # lanes : 1 = V2 (B-roll, illustrations), 2 = V3 (bandeaux, titres), 3 = V4 (logos)
+        lane = {"logo": 3, "broll": 1}.get(i["type"], 2)
+        pref = {"bandeau": "Bandeau : ", "logo": "Logo : ", "broll": "B-roll : "}.get(i["type"], "Titre : ")
         overlays.append({"fichier": i["fichier"], "rec": i["rec_frame"], "n": i["n"], "lane": lane,
-                         "nom": pref + i["texte"]})
+                         "nom": pref + i["texte"], "debut_src": i.get("debut_src_img", 0),
+                         "mute": i["type"] == "broll", "conform": i["type"] == "broll"})
+    # un B-roll prime sur une illustration du même instant (même piste V2)
+    brolls = [(o["rec"], o["rec"] + o["n"]) for o in overlays if o["nom"].startswith("B-roll")]
+    overlays = [o for o in overlays if not (o["nom"].startswith("Illustration") and any(
+        o["rec"] < b and a < o["rec"] + o["n"] for a, b in brolls))]
     if musique:
         for mc in musique.get("clips") or [{"fichier": musique["fichier"], "rec_frame": 0, "piste": 0,
                                             "n": int(round(musique["duree"] * fps)), "titre": musique["titre"]}]:
@@ -189,13 +195,15 @@ def _ajouter_timeline(event, ressources, nom, coupes, overlays, total, fps, fmt_
         ident, s, fdo, tco = ressources.asset(o["fichier"])
         att = {"name": o["nom"], "ref": ident, "lane": str(o["lane"]),
                "offset": t(tc0 + c["debut_img"] + (o["rec"] - c["rec"]), fda),
-               "start": t(tco, fdo),
+               "start": t(tco + o.get("debut_src", 0), fdo),
                "duration": t(min(o["n"], int(s["duree"] * self_fps(s, fps))), fd)}
         if s["video"]:
             att["format"] = ressources.format(s["w"], s["h"], s["fps"])
         oc = ET.SubElement(el, "asset-clip", att)
         if o.get("conform"):
             _remplir(oc, s, res_seq)
+        if o.get("mute"):  # le B-roll couvre l'image ; la voix de l'interview continue
+            ET.SubElement(oc, "adjust-volume", amount="-96dB")
     return proj
 
 

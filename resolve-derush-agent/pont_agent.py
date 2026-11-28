@@ -38,6 +38,7 @@ ACTIONS = {
     "logos": ("Logos animés", ["--export", "--logos"]),
     "musique": ("Musique", ["--export", "--musique"]),
     "illustrations": ("Illustrations", ["--export", "--illustrations"]),
+    "broll": ("B-roll adapté au dialogue", ["--export", "--broll"]),
     "chutiers": ("Chutiers", ["--chutiers"]),
     "analyse": ("Analyse seule", ["--analyse-seule"]),
 }

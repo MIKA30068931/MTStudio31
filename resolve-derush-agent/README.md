@@ -14,6 +14,28 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
+## B-roll adapté au dialogue (`--broll`)
+```
+py -3 derush_agent.py "C:\montage video" --export --broll
+```
+L'agent pose **tes propres plans de coupe** sur l'image (piste **V2**) quand la personne parle de leur sujet, pendant que sa **voix continue**
+(le son de l'interview n'est jamais coupé ; le son du plan est coupé).
+1. **Il inventorie** tes plans : dossiers `B-roll`, `Plans de coupe`, `Ambiance`, `Drone` (modifiable : `broll_categories`). Ils ne sont plus mis
+   bout à bout sur V1 : ils servent seulement de couverture.
+2. **Il comprend ce que montre chaque plan** grâce à son **nom de fichier et de dossier** (`cafe_terrasse.mp4`, `B-roll/Plage/plan_03.mp4`), à ta
+   **description** dans `broll.json` (créé au premier lancement : écris quelques mots par plan, ex. « plage, mer, vagues »), et, si une clé
+   `ANTHROPIC_API_KEY` existe, à une **description automatique** faite en regardant 3 images du plan (`_suggestion`, à vérifier).
+3. **Il associe chaque phrase au bon plan** : par recoupement de mots-clés (café/cafés, voiture/voitures), ou, avec la clé Anthropic, par le sens.
+   Un plan hors sujet est pire que pas de plan : sans lien clair, il ne pose rien.
+4. **Règles de montage** : le plan démarre au mot-clé prononcé (0,3 s avant), couvre la phrase (2,5 à 6 s), jamais collé à une coupe, 2,5 s mini
+   entre deux plans, un même plan ne revient pas avant 45 s et reprend alors là où il s'était arrêté.
+- Réglages (`config.json`) : `broll_duree_min_s`, `broll_duree_max_s`, `broll_ecart_min_s`, `broll_reutilisation_min_s`, `broll_score_min`,
+  `broll_claude`, `broll_vision`. Un plan avec `"exclure": true` dans `broll.json` n'est jamais posé.
+- Confidentialité : sans clé, tout reste sur ton PC. Avec la clé, le **texte** du dialogue et 3 **images** de chaque plan vont à Claude.
+- Limites : sans description ni clé, seuls les noms de fichiers servent (donne des noms parlants). Le son du plan est coupé dans le fichier
+  d'export (réglage « -96 dB » à vérifier dans Resolve). Une illustration (`--illustrations`) qui tombe au même instant est écartée.
+  Non testé dans ton Resolve ; testé avec des plans et un dialogue simulés.
+
 ## Interface web (Base44) pour piloter l'agent par onglets
 Une application Base44 propose un onglet par action (montage complet, chutiers, silences, sous-titres, bandeaux, logos, musique,
 illustrations, analyse) avec le suivi en direct de ce que fait l'agent et un historique. Elle ne peut pas lancer l'agent toute seule

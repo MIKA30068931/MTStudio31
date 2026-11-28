@@ -110,5 +110,14 @@
     "Riser": "riser build up",
     "Applaudissements": "applause",
     "Ambiance": "room tone ambience"
-  }
+  },
+  "broll": false,
+  "broll_categories": [],
+  "broll_duree_min_s": 2.5,
+  "broll_duree_max_s": 6.0,
+  "broll_ecart_min_s": 2.5,
+  "broll_reutilisation_min_s": 45,
+  "broll_score_min": 1,
+  "broll_claude": true,
+  "broll_vision": true
 }

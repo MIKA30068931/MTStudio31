@@ -82,6 +82,15 @@ DEFAUTS = {
     "format_video": None,
     "resolution_video": None,
     "resolution_timeline": None,
+    "broll": False,
+    "broll_categories": [],
+    "broll_duree_min_s": 2.5,
+    "broll_duree_max_s": 6.0,
+    "broll_ecart_min_s": 2.5,
+    "broll_reutilisation_min_s": 45,
+    "broll_score_min": 1,
+    "broll_claude": True,
+    "broll_vision": True,
     "logos": False,
     "dossier_logos": "Logos",
     "logo_duree_s": 3.0,
@@ -449,10 +458,11 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
             mi = hab_items.get(os.path.normcase(i["fichier"]))
             if mi is None:
                 continue
-            couleur = {"bandeau": "Cyan", "logo": "Fuchsia"}.get(i["type"], "Lavender")
-            lib = {"bandeau": "Bandeau de nom", "logo": "Logo"}.get(i["type"], "Titre de section")
-            out.append(({"mediaPoolItem": mi, "startFrame": 0, "endFrame": i["n"] - 1,
-                         "mediaType": 1, "trackIndex": 4 if i["type"] == "logo" else 3,
+            couleur = {"bandeau": "Cyan", "logo": "Fuchsia", "broll": "Sky"}.get(i["type"], "Lavender")
+            lib = {"bandeau": "Bandeau de nom", "logo": "Logo", "broll": "B-roll"}.get(i["type"], "Titre de section")
+            debut_src = i.get("debut_src_img", 0)
+            out.append(({"mediaPoolItem": mi, "startFrame": debut_src, "endFrame": debut_src + i["n"] - 1,
+                         "mediaType": 1, "trackIndex": {"logo": 4, "broll": 2}.get(i["type"], 3),
                          "_meta": (couleur, f"{lib} : {i['texte']}",
                                    "Graphique animé généré par l'agent (piste V3). Pour changer le texte : "
                                    "modifier habillage.json puis relancer.")}, i["rec_frame"]))
@@ -738,6 +748,8 @@ def main():
     ap.add_argument("--tout", action="store_true",
                     help="Montage complet automatique : silences, hésitations, répétitions, sous-titres, bandeaux, "
                          "logos (si dossier Logos) et musique (si dossier Musique)")
+    ap.add_argument("--broll", action="store_true",
+                    help="Pose tes plans de coupe (B-roll) sur l'image quand le dialogue parle de leur sujet")
     ap.add_argument("--nettoyer", action="store_true",
                     help="Retire aussi les hésitations (euh) et les prises répétées (transcription Whisper)")
     ap.add_argument("--export", action="store_true",
@@ -765,6 +777,8 @@ def main():
     cfg = charger_config(args.config)
     if args.nettoyer:
         cfg["nettoyage"] = True
+    if args.broll:
+        cfg["broll"] = True
     if args.logos:
         cfg["logos"] = True
     if args.habillage:
@@ -791,7 +805,7 @@ def main():
 
     racine = Path(args.dossier or choisir_dossier()).expanduser().resolve()
     if args.tout:
-        cfg.update(nettoyage=True, sous_titres=True, habillage=True, logos=True)
+        cfg.update(nettoyage=True, sous_titres=True, habillage=True, logos=True, broll=True)
         musiques = [f for f in (racine / cfg["musique_dossier"]).rglob("*")
                     if f.suffix.lower() in (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
                     and "_rendus" not in f.parts] if (racine / cfg["musique_dossier"]).is_dir() else []
@@ -845,6 +859,22 @@ def main():
         print("Nettoyage : hésitations et prises répétées (transcription locale)...")
         nettoyage.appliquer(analyses, [c for c in analyses if doit_derusher(c, cfg)], cfg)
 
+    fiches_broll = []
+    if cfg["broll"]:
+        import broll
+        cats_cv = broll.categories_broll(cats, cfg)
+        print("B-roll : inventaire des plans de coupe...")
+        fiches_broll = broll.inventaire(racine, cats, analyses, cfg) if cats_cv else []
+        reste = {c: l for c, l in analyses.items() if c not in cats_cv}
+        if not fiches_broll:
+            print("  Aucun plan de coupe exploitable (dossier B-roll, Plans de coupe, Drone...) : B-roll ignoré.")
+        elif not reste:
+            print("  Il n'y a que des plans de coupe : rien sur quoi les poser. B-roll ignoré.")
+            fiches_broll = []
+        else:  # les plans de coupe ne sont plus mis bout à bout : ils servent de couverture
+            print(f"  {len(fiches_broll)} plan(s) de coupe disponibles : ils couvriront l'image, la voix continue.")
+            analyses = reste
+
     marques = {}
     if cfg["logos"]:
         import logos
@@ -865,6 +895,12 @@ def main():
         import habillage
         print("Habillage : bandeaux de nom et titres de sections...")
         plan_hab = habillage.generer(analyses, [c for c in analyses if doit_derusher(c, cfg)], cfg, racine)
+
+    if fiches_broll:
+        plan_broll = broll.generer(analyses, [c for c in analyses if doit_derusher(c, cfg)], cfg, racine, fiches_broll)
+        plan_hab = plan_hab or {}
+        for cle, liste in plan_broll.items():
+            plan_hab[cle] = plan_hab.get(cle, []) + liste
 
     if marques:
         cats_logo = [c for c in analyses if doit_derusher(c, cfg)]
