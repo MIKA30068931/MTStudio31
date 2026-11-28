@@ -93,7 +93,7 @@ def plan(analyses, categories_incluses, fps, plan_hab_items, musique):
                     rec = p + int(round((ill["src_start"] - s) * fps))
                     if nb > 1:
                         overlays.append({"fichier": ill["fichier"], "rec": rec, "n": nb, "lane": 1,
-                                         "nom": "Illustration : " + ill["requete"]})
+                                         "nom": "Illustration : " + ill["requete"], "conform": True})
             pos = pos_fin
     for i in plan_hab_items or []:
         lane = 3 if i["type"] == "logo" else 2  # V4 pour les logos, V3 pour bandeaux et titres
@@ -125,7 +125,7 @@ class Ressources:
         cle = (w, h, fd)
         if cle not in self.formats:
             i = self._id()
-            nom = f"FFVideoFormat{h}p{int(round(fps))}"
+            nom = f"FFVideoFormat{w}x{h}p{int(round(fps))}"
             ET.SubElement(self.res, "format", id=i, name=nom, frameDuration=f"{fd[0]}/{fd[1]}s",
                           width=str(w), height=str(h), colorSpace="1-1-1 (Rec. 709)")
             self.formats[cle] = i
@@ -156,7 +156,13 @@ def self_fps(s, fps):
     return s["fps"] if s["video"] else fps
 
 
-def _ajouter_timeline(event, ressources, nom, coupes, overlays, total, fps, fmt_id):
+def _remplir(el, s, res_seq):
+    """Plan d'une autre proportion que la timeline (ex. 16:9 dans un montage 9:16) : remplit l'écran (recadré au centre)."""
+    if s["video"] and s["w"] and s["h"] and res_seq and abs(s["w"] / s["h"] - res_seq[0] / res_seq[1]) > 0.02:
+        ET.SubElement(el, "adjust-conform", type="fill")
+
+
+def _ajouter_timeline(event, ressources, nom, coupes, overlays, total, fps, fmt_id, res_seq=None):
     fd = ressources.fd_seq
     proj = ET.SubElement(event, "project", name=nom)
     seq = ET.SubElement(proj, "sequence", format=fmt_id, duration=t(total, fd), tcStart="0s",
@@ -171,6 +177,7 @@ def _ajouter_timeline(event, ressources, nom, coupes, overlays, total, fps, fmt_
         if s["video"]:
             att["format"] = ressources.format(s["w"], s["h"], s["fps"])
         el = ET.SubElement(spine, "asset-clip", att)
+        _remplir(el, s, res_seq)
         if c.get("marqueur"):
             ET.SubElement(el, "marker", start=t(tc0 + c["debut_img"], fda),
                           duration=t(1, fda), value=c["marqueur"])
@@ -186,7 +193,9 @@ def _ajouter_timeline(event, ressources, nom, coupes, overlays, total, fps, fmt_
                "duration": t(min(o["n"], int(s["duree"] * self_fps(s, fps))), fd)}
         if s["video"]:
             att["format"] = ressources.format(s["w"], s["h"], s["fps"])
-        ET.SubElement(el, "asset-clip", att)
+        oc = ET.SubElement(el, "asset-clip", att)
+        if o.get("conform"):
+            _remplir(oc, s, res_seq)
     return proj
 
 
@@ -195,7 +204,9 @@ def exporter(analyses, categories, cfg, racine, sortie, musique=None, plan_hab=N
     fps = st.fps_timeline(analyses, cfg)
     premier = next((a for l in analyses.values() for a in l if a["video"]), None)
     w, h = (1920, 1080)
-    if premier:
+    if cfg.get("resolution_timeline"):
+        w, h = cfg["resolution_timeline"]
+    elif premier:
         s = sonde(premier["fichier"])
         w, h = s["w"] or w, s["h"] or h
     fcp = ET.Element("fcpxml", version=FCPXML_VERSION)
@@ -214,7 +225,7 @@ def exporter(analyses, categories, cfg, racine, sortie, musique=None, plan_hab=N
         hab = (plan_hab or {}).get(cle)
         coupes, ov, total = plan(analyses, cats, fps, hab, musique if cle == "__global__" else None)
         if coupes:
-            _ajouter_timeline(event, res, nom, coupes, ov, total, fps, fmt_id)
+            _ajouter_timeline(event, res, nom, coupes, ov, total, fps, fmt_id, (w, h))
             print(f"  Timeline « {nom} » : {len(coupes)} coupes, {len(ov)} éléments sur V2/V3/A2")
     ET.indent(fcp, space="  ")
     sortie = Path(sortie)

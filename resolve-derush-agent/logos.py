@@ -99,9 +99,12 @@ def rendre_logo(logo, n_images, fps, sortie, res, cfg):
     """Logo : apparition « pop » (rebond), léger flottement, fondu de sortie, sur fond transparent."""
     W, H = res
     D = n_images / fps
-    taille = int(W * cfg["logo_taille"])
+    taille = int(min(W, H) * cfg["logo_taille"] * 1.78)  # = largeur * logo_taille en 16:9
     px, py = POSITIONS.get(cfg["logo_position"], POSITIONS["haut-droite"])
     ax, ay = int(W * px), int(H * py)
+    marge = W * 0.04
+    demi = taille * 1.1 / 2  # demi-largeur avec le rebond d'entrée
+    ax = int(min(max(ax, marge + demi), W - marge - demi))  # le logo reste entièrement dans l'image
     x = "min(t/0.45,1)-1"
     pop = f"(1+2.70158*pow({x},3)+1.70158*pow({x},2))"
     sortie_exp = f"if(gt(t,{D:.3f}-0.3),max(0.02,({D:.3f}-t)/0.3),1)"

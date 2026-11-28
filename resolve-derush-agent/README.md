@@ -14,6 +14,22 @@ Montage vidéo/
 └── B-roll/         ...                  -> gardé entier (liste modifiable)
 ```
 
+## Format et qualité : l'agent te pose la question
+Au lancement, l'agent demande :
+```
+Format du montage :   1) 16:9 - horizontal (YouTube, TV, site web)   2) 9:16 - vertical (TikTok, Reels, Shorts)
+Qualité du montage :  1) 1080p - Full HD                              2) 4K - Ultra HD
+```
+Entrée = choix 1. Résultat : 1920x1080, 3840x2160, 1080x1920 ou 2160x3840.
+- **Sauter les questions** : `--format 9:16 --resolution 4k`, ou `--sans-questions` (16:9 / 1080p), ou renseigne
+  `format_video` et `resolution_video` dans `config.json` (et `"demander_format": false`).
+- **Ce qui s'adapte** : la timeline exportée (taille du projet), les bandeaux, titres et logos (rendus à la bonne taille,
+  textes longs mis à la ligne ou réduits, bandeau remonté en vertical pour éviter l'interface des réseaux), les images
+  d'illustration (converties au bon format) et les sous-titres (lignes de 26 caractères en vertical).
+- **Plans d'une autre proportion** (un plan 16:9 dans un montage 9:16) : ils sont réglés pour **remplir l'écran, recadrés
+  au centre**. Si la personne n'est pas au centre, il faut recadrer à la main dans Resolve (Inspecteur, Position).
+- Limite : le recadrage automatique intelligent (suivre le visage) n'est pas fait.
+
 ## Resolve gratuit 21.1 : mode export (sans scripting)
 D'après les informations trouvées (non confirmées par les pages officielles, illisibles depuis ma session),
 le scripting est réservé à **DaVinci Resolve Studio** depuis la 21.1 ; la version gratuite n'a plus de menu

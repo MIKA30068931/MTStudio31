@@ -59,6 +59,10 @@ DEFAUTS = {
     "dossier_illustrations": "Illustrations",
     "marqueurs": True,
     "marqueur_coupe_longue_s": 3,
+    "demander_format": True,
+    "format_video": None,
+    "resolution_video": None,
+    "resolution_timeline": None,
     "logos": False,
     "dossier_logos": "Logos",
     "logo_duree_s": 3.0,
@@ -308,7 +312,11 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
         print(f"  Bin Rushs/{cat} : {len(importes)}/{len(fichiers)} clips importés")
     mp.SetCurrentFolder(dossier_racine)
 
-    if premier and not cfg["fps_timeline"]:
+    if cfg.get("resolution_timeline"):
+        w, h = cfg["resolution_timeline"]
+        projet.SetSetting("timelineResolutionWidth", str(w))
+        projet.SetSetting("timelineResolutionHeight", str(h))
+    elif premier and not cfg["fps_timeline"]:
         try:
             res = items[os.path.normcase(premier["fichier"])].GetClipProperty("Resolution")
             w, h = res.split("x")
@@ -526,6 +534,53 @@ def construire_dans_resolve(racine, cats, analyses, cfg, musique=None, sous_titr
 
 
 # --------------------------------------------------------------------------- #
+RESOLUTIONS = {("16:9", "1080p"): (1920, 1080), ("16:9", "4k"): (3840, 2160),
+               ("9:16", "1080p"): (1080, 1920), ("9:16", "4k"): (2160, 3840)}
+
+
+def _poser_question(texte, options, defaut):
+    """Pose une question à choix ; Entrée ou une entrée non disponible = valeur par défaut."""
+    print(texte)
+    for i, (cle, lib) in enumerate(options, 1):
+        print(f"  {i}) {lib}")
+    try:
+        rep = input(f"Ton choix [{defaut}] : ").strip().lower()
+    except (EOFError, OSError):  # pas de clavier (lancement depuis Resolve) : valeur par défaut
+        rep = ""
+    if rep.isdigit() and 1 <= int(rep) <= len(options):
+        return options[int(rep) - 1][0]
+    for cle, _ in options:
+        if rep and rep.replace(" ", "") == cle:
+            return cle
+    return options[defaut - 1][0]
+
+
+def choisir_format(args, cfg):
+    """Format (16:9 / 9:16) et qualité (1080p / 4K) : options, config, sinon questions."""
+    fmt = (args.format or cfg.get("format_video") or "").lower() or None
+    qual = (args.resolution or cfg.get("resolution_video") or "").lower() or None
+    qual = {"fullhd": "1080p", "1080": "1080p", "uhd": "4k", "2160p": "4k"}.get(qual, qual)
+    if fmt not in ("16:9", "9:16"):
+        fmt = None
+    if qual not in ("1080p", "4k"):
+        qual = None
+    if cfg.get("demander_format", True) and not args.sans_questions:
+        print()
+        if not fmt:
+            fmt = _poser_question("Format du montage :", [("16:9", "16:9 - horizontal (YouTube, TV, site web)"),
+                                  ("9:16", "9:16 - vertical (TikTok, Reels, Shorts)")], 1)
+        if not qual:
+            qual = _poser_question("Qualité du montage :", [("1080p", "1080p - Full HD (rapide, léger)"),
+                                   ("4k", "4K - Ultra HD (plus lourd et plus long à rendre)")], 1)
+        print()
+    fmt, qual = fmt or "16:9", qual or "1080p"
+    w, h = RESOLUTIONS[(fmt, qual)]
+    cfg["format_video"], cfg["resolution_video"], cfg["resolution_timeline"] = fmt, qual, [w, h]
+    if h > w and cfg["sous_titres_max_car_ligne"] == DEFAUTS["sous_titres_max_car_ligne"]:
+        cfg["sous_titres_max_car_ligne"] = 26  # écran étroit : lignes de sous-titres plus courtes
+    print(f"Montage : {fmt}, {qual} -> {w}x{h}")
+
+
 def charger_config(chemin_cfg):
     cfg = dict(DEFAUTS)
     if chemin_cfg:
@@ -573,6 +628,10 @@ def main():
                     help="Génère les sous-titres français (.srt) et les pose sur la timeline")
     ap.add_argument("--musique", metavar="AMBIANCE",
                     help='Ajoute une musique de fond : "calme, inspirant" ou "auto" (déduit du dialogue)')
+    ap.add_argument("--format", choices=["16:9", "9:16"], help="Format du montage (sinon l'agent te le demande)")
+    ap.add_argument("--resolution", choices=["1080p", "4k"], help="Qualité du montage (sinon l'agent te la demande)")
+    ap.add_argument("--sans-questions", action="store_true",
+                    help="Ne pose aucune question : utilise les options, config.json ou 16:9 / 1080p")
     ap.add_argument("--musique-choisir", action="store_true", help="Propose la liste de pistes à choisir")
     ap.add_argument("--musique-dossier", help="Dossier de tes pistes (ex. téléchargées sur Epidemic Sound)")
     ap.add_argument("--seuil", type=float, help="Seuil de silence en dB (ex: -35)")
@@ -598,6 +657,7 @@ def main():
         cfg["duree_silence_min_s"] = args.silence_min
 
     racine = Path(args.dossier or choisir_dossier()).expanduser().resolve()
+    choisir_format(args, cfg)
     if not racine.is_dir():
         sys.exit(f"Dossier introuvable : {racine}")
     for exe in ("ffmpeg", "ffprobe"):

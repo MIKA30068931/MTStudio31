@@ -228,7 +228,8 @@ def preparer_illustration(bloc_id, q, duree, dossier, fps, cfg, credits):
             telecharger(r["url"], brut)
             if r["type"] == "image":
                 clip = brut.with_suffix(".mp4")
-                image_vers_clip(brut, clip, duree, fps)
+                w, h = cfg.get("resolution_timeline") or (1920, 1080)
+                image_vers_clip(brut, clip, duree, fps, w, h)
                 brut.unlink(missing_ok=True)
                 brut = clip
             credits.append({"fichier": brut.name, "requete": q, **r})

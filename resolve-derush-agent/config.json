@@ -72,5 +72,8 @@
   "musique_j_cut_s": 1.5,
   "musique_l_cut_s": 2.5,
   "musique_categories": [],
-  "musique_section_min_s": 3
+  "musique_section_min_s": 3,
+  "demander_format": true,
+  "format_video": null,
+  "resolution_video": null
 }

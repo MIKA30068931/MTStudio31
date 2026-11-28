@@ -48,6 +48,8 @@ def _hex(c):
 
 
 def resolution(analyses, cfg):
+    if cfg.get("resolution_timeline"):  # choisie au lancement (format + qualité)
+        return tuple(cfg["resolution_timeline"])
     if cfg.get("habillage_resolution"):
         return tuple(cfg["habillage_resolution"])
     for liste in analyses.values():
@@ -80,15 +82,20 @@ def rendre_bandeau(nom, fonction, n_images, fps, sortie, res, cfg):
     W, H = res
     D = n_images / fps
     tin, tout = 0.5, 0.4
-    bh = int(H * (0.115 if fonction else 0.08))
+    base = min(W, H)  # tailles proportionnelles au petit côté : identiques en 16:9 et en 9:16
+    bh = int(base * (0.115 if fonction else 0.08))
     t_nom0, t_fct0 = int(bh * (0.38 if fonction else 0.5)), int(bh * 0.26)
     largeur_texte = max(len(nom) * t_nom0, len(fonction or "") * t_fct0) * 0.62  # estimation police grasse
     bw = min(int(W * 0.85), max(int(W * 0.34), int(largeur_texte + W * 0.04)))
-    x1, x0, y = int(W * 0.06), -bw, int(H * 0.78)
+    x1, x0, y = int(W * 0.06), -bw, int(H * (0.70 if H > W else 0.78))  # vertical : au-dessus de l'interface
     pol = _echapper(trouver_police(cfg))
     accent, fond = _hex(cfg["habillage_couleur_accent"]), _hex(cfg["habillage_couleur_fond"])
     t_nom = int(bh * (0.38 if fonction else 0.5))
     t_fct = int(bh * 0.26)
+    dispo = bw - W * 0.04
+    if largeur_texte > dispo:  # texte plus long que la largeur maximale : on réduit la police
+        k = dispo / largeur_texte
+        t_nom, t_fct = int(t_nom * k), int(t_fct * k)
     with tempfile.TemporaryDirectory() as tmp:
         fn = _echapper(_texte(tmp, "nom.txt", nom))
         ff = _echapper(_texte(tmp, "fct.txt", fonction or ""))
@@ -113,12 +120,19 @@ def rendre_titre_section(texte, n_images, fps, sortie, res, cfg):
     W, H = res
     D = n_images / fps
     fade = 0.45
-    bh = int(H * 0.22)
+    bh = int(H * 0.22) if W >= H else int(W * 0.40)
     pol = _echapper(trouver_police(cfg))
     accent, fond = _hex(cfg["habillage_couleur_accent"]), _hex(cfg["habillage_couleur_fond"])
-    taille = int(H * 0.085)
+    taille = int(min(W, H) * 0.085)
+    import textwrap
+    max_car = max(8, int(W * 0.86 / (taille * 0.62)))
+    lignes = textwrap.wrap(texte, width=max_car) or [texte]
+    plus_long = max(len(l) for l in lignes)
+    if plus_long * taille * 0.62 > W * 0.9:  # un mot seul est trop large : on réduit la police
+        taille = int(W * 0.9 / (plus_long * 0.62))
+    bh = int(bh * (1 + 0.55 * (len(lignes) - 1)))  # la bande grandit avec le nombre de lignes
     with tempfile.TemporaryDirectory() as tmp:
-        ft = _echapper(_texte(tmp, "titre.txt", texte))
+        ft = _echapper(_texte(tmp, "titre.txt", "\n".join(lignes)))
         al = f"if(lt(t,{fade}),t/{fade},if(gt(t,{D:.3f}-{fade}),({D:.3f}-t)/{fade},1))"
         yt = f"(h-th)/2-{int(H * 0.012)}+{int(H * 0.04)}*pow(1-min(t/0.7,1),3)"
         bande = (f"color=c={fond}@0.80:s={W}x{bh}:r={fps}:d={D:.3f},format=rgba,"
